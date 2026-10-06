@@ -1,0 +1,4 @@
+:root[data-theme="dark"] .site-title img,
+:root[data-theme="dark"] .hero > img {
+  filter: invert(1) hue-rotate(180deg);
+}

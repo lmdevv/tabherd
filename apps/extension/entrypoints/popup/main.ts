@@ -1,23 +1,16 @@
 import "./style.css";
-import wxtLogo from "/wxt.svg";
-
-import typescriptLogo from "@/assets/typescript.svg";
+import tabbyLogo from "/icon/128.png";
 import { setupCounter } from "@/components/counter";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div>
-    <a href="https://wxt.dev" target="_blank">
-      <img src="${wxtLogo}" class="logo" alt="WXT logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>WXT + TypeScript</h1>
+    <img src="${tabbyLogo}" class="logo" alt="Tabby" width="128" height="128" />
+    <h1>Tabby</h1>
     <div class="card">
       <button id="counter" type="button"></button>
     </div>
     <p class="read-the-docs">
-      Click on the WXT and TypeScript logos to learn more
+      Every tab, exactly where it should be.
     </p>
   </div>
 `;

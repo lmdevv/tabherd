@@ -6,7 +6,9 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "My Docs",
+      title: "Tabby",
+      logo: { src: "./src/assets/tabby.png", alt: "Tabby" },
+      customCss: ["./src/styles/brand.css"],
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/withastro/starlight" }],
       sidebar: [
         {
