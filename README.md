@@ -1,55 +1,38 @@
-# tabby
+# Tabby
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack.
+Your browser, connected to your agent. A thin extension and local native bridge expose browser APIs through five MCP tools and a JSON CLI. Organize tabs, move windows, save bookmarks, read pages, and interact with the browser you already use.
 
-## Features
+## Quick start
 
-- **TypeScript** - For type safety and improved developer experience
-- **Oxlint** - Oxlint + Oxfmt (linting & formatting)
-- **Starlight** - Documentation site with Astro
-- **Turborepo** - Optimized monorepo build system
+Requires Node.js 22 or newer and pnpm.
 
-## Getting Started
-
-First, install the dependencies:
-
-```bash
+```sh
 pnpm install
+pnpm build
 ```
 
-Then, run the development server:
+1. Load `apps/extension/dist/chrome-mv3` as an unpacked extension in Chrome, Chromium, Edge, or Brave. Copy its extension ID.
+2. Register the host: `node packages/bridge/dist/index.js setup --browser chrome --extension-id YOUR_EXTENSION_ID`.
+3. Reload the extension and check its popup connection.
+4. Run `node packages/bridge/dist/index.js status`, then `node packages/bridge/dist/index.js call tabs.query '[{}]'`.
 
-```bash
-pnpm run dev
+For Firefox, run `pnpm --filter extension build:firefox`, temporarily load `apps/extension/dist/firefox-mv2/manifest.json` from `about:debugging`, and register with `setup --browser firefox`.
+
+Add the bridge to your agent’s stdio MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "tabby": {
+      "command": "node",
+      "args": ["/absolute/path/to/tabby/packages/bridge/dist/index.js", "mcp"]
+    }
+  }
+}
 ```
 
-## Environment Configuration
+The browser starts the native host automatically. No account or separate server. Tabby grants local control of your real browser profile; use it with agents you trust. API availability varies by browser.
 
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `pnpm run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
+[Quick start](apps/docs/src/content/docs/quick-start.md) · [Tools and CLI](apps/docs/src/content/docs/tools.md) · [Agent skill](skills/tabby/SKILL.md)
 
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
-
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Git Hooks and Formatting
-
-- Run checks: `pnpm run check`
-
-## Project Structure
-
-```
-tabby/
-├── apps/
-│   ├── docs/        # Documentation site (Astro Starlight)
-```
-
-## Available Scripts
-
-- `pnpm run dev`: Start all applications in development mode
-- `pnpm run build`: Build all applications
-- `pnpm run check-types`: Check TypeScript types across all apps
-- `pnpm run check`: Run Oxlint and Oxfmt
-- `cd apps/docs && pnpm run dev`: Start documentation site
-- `cd apps/docs && pnpm run build`: Build documentation site
+Docs: `pnpm --filter docs dev`. Checks: `pnpm test` and `pnpm check-types`. Optional real browser test on Linux with Chromium: `pnpm test:browser`.

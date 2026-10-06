@@ -1,27 +1,22 @@
-import starlight from "@astrojs/starlight";
 // @ts-check
+import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 
-// https://astro.build/config
 export default defineConfig({
+  devToolbar: { enabled: false },
   integrations: [
     starlight({
       title: "Tabby",
       logo: { src: "./src/assets/tabby.png", alt: "Tabby" },
       customCss: ["./src/styles/brand.css"],
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/withastro/starlight" }],
+      credits: false,
+      expressiveCode: { themes: ["github-light", "github-dark"] },
+      components: { Hero: "./src/components/Hero.astro" },
       sidebar: [
-        {
-          label: "Guides",
-          items: [
-            // Each item here is one entry in the navigation menu.
-            { label: "Example Guide", slug: "guides/example" },
-          ],
-        },
-        {
-          label: "Reference",
-          items: [{ autogenerate: { directory: "reference" } }],
-        },
+        { label: "Overview", slug: "" },
+        { label: "Quick start", slug: "quick-start" },
+        { label: "Tools & commands", slug: "tools" },
+        { label: "Workflows", slug: "workflows" },
       ],
     }),
   ],

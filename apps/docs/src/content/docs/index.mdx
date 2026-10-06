@@ -1,39 +1,52 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Your browser. Your agent.
+description: Give your agent a local connection to the browser you already use. Organize tabs, save bookmarks, and work with real pages through MCP or a CLI.
+template: splash
+prev: false
+next: false
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/tabby.png
-  actions:
-    - text: Example Guide
-      link: /guides/example/
-      icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
-      variant: minimal
+  tagline: A small local bridge for the browser you already use.
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+<div className="feature-grid">
+  <section>
+    <span className="feature-index">01 / MAKE SPACE</span>
+    <h2>A little less tab chaos.</h2>
+    <p>
+      Group a project, move a window, save what matters, and close what’s finished. Let your agent
+      handle the housekeeping.
+    </p>
+  </section>
+  <section>
+    <span className="feature-index">02 / GET CONTEXT</span>
+    <h2>Read beyond the title.</h2>
+    <p>
+      Read pages and inspect links, forms, and buttons. Help your agent understand what you’re
+      working on.
+    </p>
+  </section>
+  <section>
+    <span className="feature-index">03 / TAKE ACTION</span>
+    <h2>Use the real browser.</h2>
+    <p>
+      Click, type, navigate, and capture screenshots in your existing profile, with the sessions you
+      already have.
+    </p>
+  </section>
+</div>
 
-## Next steps
+<div className="local-note">
+  <span className="feature-index">SMALL BY DESIGN</span>
+  <h2>An extension. A local bridge. Your choice of agent.</h2>
+  <p>
+    Tabby connects browser APIs to five MCP tools and a JSON CLI. Your agent chooses the workflow;
+    Tabby carries out the browser actions. No Tabby account or cloud service.
+  </p>
+  <a href="/tools/">
+    Explore the tools <span aria-hidden="true">↗</span>
+  </a>
+</div>
 
-<CardGrid stagger>
-  <Card title="Update content" icon="pencil">
-    Edit `src/content/docs/index.mdx` to see this page change.
-  </Card>
-  <Card title="Change page layout" icon="document">
-    Delete `template: splash` in `src/content/docs/index.mdx` to display a sidebar on this page.
-  </Card>
-  <Card title="Add new content" icon="add-document">
-    Add Markdown or MDX files to `src/content/docs` to create new pages.
-  </Card>
-  <Card title="Configure your site" icon="setting">
-    Edit your `sidebar` and other config in `astro.config.mjs`.
-  </Card>
-  <Card title="Read the docs" icon="open-book">
-    Learn more in [the Starlight Docs](https://starlight.astro.build/).
-  </Card>
-</CardGrid>
+<div className="compatibility">
+  Chrome · Chromium · Edge · Brave · Firefox <span>Availability follows your browser’s APIs.</span>
+</div>

@@ -1,0 +1,35 @@
+---
+const groups = [
+  { label: "Research", count: "4 tabs", style: "research", tabs: ["Project notes", "API reference"] },
+  { label: "For later", count: "2 tabs", style: "later", tabs: ["A good read"] },
+];
+---
+
+<div class="tabby-hero">
+  <div class="hero-copy">
+    <p class="eyebrow"><span aria-hidden="true"></span> YOUR BROWSER, CONNECTED</p>
+    <h1 id="_top" data-page-title>Your browser.<br />Your agent.</h1>
+    <p class="hero-description">Give your agent the browser you already use. Organize tabs, understand pages, and get things done.</p>
+    <div class="hero-actions">
+      <a class="start-link" href="/quick-start/">Get started <span aria-hidden="true">→</span></a>
+      <a class="reference-link" href="/tools/">Read the docs</a>
+    </div>
+    <p class="hero-caption">Local by default. MCP and CLI. Your real profile.</p>
+  </div>
+  <div class="browser-demo" role="img" aria-label="An example of Tabby grouping research tabs and saving reading for later.">
+    <div class="browser-chrome"><div class="window-dots"><i></i><i></i><i></i></div><span>your workspace</span><span aria-hidden="true">＋</span></div>
+    <div class="browser-address"><span aria-hidden="true">⌕</span><span>Everything, a little more organized.</span></div>
+    <div class="workspace">
+      <div class="workspace-heading"><span>Open tabs</span><span>6</span></div>
+      {groups.map((group) => (
+        <div class:list={["tab-group", group.style]}>
+          <div class="group-heading"><span><i></i>{group.label}</span><span>{group.count}</span></div>
+          {group.tabs.map((tab) => <div class="example-tab"><span class="tab-icon" aria-hidden="true">▧</span><span>{tab}</span><span class="tab-close" aria-hidden="true">×</span></div>)}
+        </div>
+      ))}
+      <div class="agent-request"><span class="request-mark" aria-hidden="true">✳</span><span>“Tidy up my research tabs.”</span></div>
+      <div class="agent-result"><span aria-hidden="true">↳</span> Grouped, saved, and back in focus.</div>
+    </div>
+    <div class="browser-footer"><span><i></i> Connected locally</span><code>browser_call</code></div>
+  </div>
+</div>
