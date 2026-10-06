@@ -88,12 +88,13 @@ h3 {
 .content-panel h1 {
   font-weight: 550;
 }
-.sl-markdown-content h2 {
-  font-size: 1.4rem;
-  font-weight: 550;
+/* Size headings via Starlight's variables so the anchor-link wrapper matches. */
+.sl-markdown-content {
+  --sl-text-h2: 1.4rem;
+  --sl-text-h3: 1.12rem;
 }
+.sl-markdown-content h2,
 .sl-markdown-content h3 {
-  font-size: 1.12rem;
   font-weight: 550;
 }
 .sl-markdown-content {
