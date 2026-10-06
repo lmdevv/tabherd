@@ -1,0 +1,25 @@
+{
+  "name": "@tabby/bridge",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "tabby": "dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check-types": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@tabby/protocol": "workspace:*",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "esbuild": "^0.27.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
