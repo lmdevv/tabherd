@@ -7,11 +7,13 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Tabby",
-      logo: { src: "./src/assets/tabby.png", alt: "Tabby" },
       customCss: ["./src/styles/brand.css"],
       credits: false,
       expressiveCode: { themes: ["github-light", "github-dark"] },
-      components: { Hero: "./src/components/Hero.astro" },
+      components: {
+        Hero: "./src/components/Hero.astro",
+        SiteTitle: "./src/components/SiteTitle.astro",
+      },
       sidebar: [
         { label: "Overview", slug: "" },
         { label: "Quick start", slug: "quick-start" },

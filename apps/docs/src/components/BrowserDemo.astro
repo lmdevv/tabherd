@@ -1,0 +1,307 @@
+---
+/**
+ * A looping, scripted demo of Tabby at work: the agent is asked to tidy the
+ * research tabs, calls a handful of browser APIs, and the tab list reorganizes
+ * itself (grouped, saved, duplicate closed) with FLIP animations.
+ */
+const tabs = [
+  { id: "t1", title: "Attention Is All You Need", host: "arxiv.org", group: "research", tone: "red" },
+  { id: "t2", title: "The slow web", host: "longreads.com", group: "reading", tone: "amber" },
+  { id: "t3", title: "useEffect – React", host: "react.dev", group: "research", tone: "blue" },
+  { id: "t4", title: "Attention Is All You Need", host: "arxiv.org", group: "duplicate", tone: "red" },
+  { id: "t5", title: "Tokenizer design notes", host: "notion.so", group: "research", tone: "gray" },
+  { id: "t6", title: "A field guide to tide pools", host: "hakai.org", group: "reading", tone: "teal" },
+];
+
+const groups = [
+  { id: "research", label: "Research", style: "research" },
+  { id: "reading", label: "Reading", style: "later" },
+];
+---
+
+<div
+  class="browser-demo"
+  role="img"
+  aria-label="Tabby grouping research tabs, saving two articles for later, and closing a duplicate tab."
+>
+  <div class="browser-chrome">
+    <div class="window-dots"><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="demo-body">
+    <div class="demo-head">
+      <span>Open tabs</span>
+      <span class="tab-count" data-count>{tabs.length}</span>
+    </div>
+
+    <div class="demo-list" data-list>
+      {
+        groups.map((group) => (
+          <div class:list={["d-group", group.style]} data-group={group.id} hidden>
+            <div class="d-group-head">
+              <i></i>
+              <span class="d-group-name" data-name={group.label}>
+                New group
+              </span>
+              <span class="d-group-count"></span>
+            </div>
+          </div>
+        ))
+      }
+      {
+        tabs.map((tab) => (
+          <div class="d-tab" data-tab={tab.id} data-group={tab.group}>
+            <i class:list={["favicon", tab.tone]}></i>
+            <span class="d-tab-title">{tab.title}</span>
+            <span class="d-tab-host">{tab.host}</span>
+            <svg class="d-tab-mark" viewBox="0 0 12 14" aria-hidden="true">
+              <path d="M2 1h8v12l-4-3-4 3z" />
+            </svg>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="agent-panel">
+      <div class="agent-prompt">
+        <span class="prompt-mark" aria-hidden="true">✳</span>
+        <span class="prompt-text" data-prompt></span><span class="prompt-caret" data-caret></span>
+      </div>
+      <ol class="agent-log" data-log></ol>
+      <div class="agent-result" data-result></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  type Step = { at: number; run: () => void };
+
+  const demo = document.querySelector<HTMLElement>(".browser-demo");
+
+  if (demo) {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const list = demo.querySelector<HTMLElement>("[data-list]")!;
+    const count = demo.querySelector<HTMLElement>("[data-count]")!;
+    const prompt = demo.querySelector<HTMLElement>("[data-prompt]")!;
+    const caret = demo.querySelector<HTMLElement>("[data-caret]")!;
+    const log = demo.querySelector<HTMLElement>("[data-log]")!;
+    const result = demo.querySelector<HTMLElement>("[data-result]")!;
+    const initialList = list.innerHTML;
+    const request = "Tidy up my research tabs.";
+
+    let timers: number[] = [];
+    let running = false;
+    let inView = true;
+    let hidden = document.hidden;
+
+    const ease = "cubic-bezier(0.22, 0.8, 0.26, 1)";
+
+    const flip = (mutate: () => void) => {
+      const items = Array.from(list.querySelectorAll<HTMLElement>(".d-tab, .d-group"));
+      const before = new Map(items.map((el) => [el, el.getBoundingClientRect()]));
+      mutate();
+      if (reduce) return;
+      for (const el of items) {
+        const first = before.get(el)!;
+        const last = el.getBoundingClientRect();
+        if (first.width === 0 && first.height === 0) {
+          el.animate(
+            [
+              { opacity: 0, transform: "translateY(6px)" },
+              { opacity: 1, transform: "none" },
+            ],
+            { duration: 420, easing: ease },
+          );
+          continue;
+        }
+        const dx = first.left - last.left;
+        const dy = first.top - last.top;
+        if (dx || dy) {
+          el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+            duration: 560,
+            easing: ease,
+          });
+        }
+      }
+    };
+
+    const addLog = (method: string, note: string) => {
+      const item = document.createElement("li");
+      item.innerHTML = `<code>${method}</code><span>${note}</span>`;
+      log.append(item);
+      if (!reduce) {
+        item.animate(
+          [
+            { opacity: 0, transform: "translateY(5px)" },
+            { opacity: 1, transform: "none" },
+          ],
+          { duration: 300, easing: ease },
+        );
+      }
+      while (log.children.length > 4) log.firstElementChild?.remove();
+    };
+
+    const showGroup = (id: string) => {
+      const group = list.querySelector<HTMLElement>(`.d-group[data-group="${id}"]`)!;
+      const members = Array.from(list.querySelectorAll<HTMLElement>(`.d-tab[data-group="${id}"]`));
+      flip(() => {
+        group.hidden = false;
+        group.append(...members);
+        group.querySelector(".d-group-count")!.textContent = `${members.length} tabs`;
+      });
+    };
+
+    const nameGroups = () => {
+      for (const name of list.querySelectorAll<HTMLElement>(".d-group-name")) {
+        name.textContent = name.dataset.name ?? "";
+        name.closest(".d-group")?.classList.add("is-named");
+      }
+    };
+
+    const saveReading = () => {
+      for (const tab of list.querySelectorAll<HTMLElement>('.d-tab[data-group="reading"]')) {
+        tab.classList.add("is-saved");
+      }
+    };
+
+    const closeDuplicate = () => {
+      const tab = list.querySelector<HTMLElement>('.d-tab[data-group="duplicate"]');
+      if (!tab) return;
+      count.textContent = String(list.querySelectorAll(".d-tab").length - 1);
+      if (reduce) {
+        tab.remove();
+        return;
+      }
+      const height = tab.getBoundingClientRect().height;
+      tab.style.overflow = "hidden";
+      tab
+        .animate(
+          [
+            { height: `${height}px`, opacity: 1, transform: "none" },
+            { height: `${height}px`, opacity: 0, transform: "translateX(14px)", offset: 0.45 },
+            { height: "0px", opacity: 0, paddingBlock: "0px", transform: "translateX(14px)" },
+          ],
+          { duration: 520, easing: ease, fill: "forwards" },
+        )
+        .finished.then(() => tab.remove());
+    };
+
+    const typePrompt = () => {
+      caret.classList.add("is-typing");
+      if (reduce) {
+        prompt.textContent = request;
+        return;
+      }
+      let i = 0;
+      const tick = () => {
+        prompt.textContent = request.slice(0, ++i);
+        if (i < request.length) timers.push(window.setTimeout(tick, 28 + Math.random() * 40));
+        else timers.push(window.setTimeout(() => caret.classList.remove("is-typing"), 600));
+      };
+      tick();
+    };
+
+    const finish = () => {
+      result.innerHTML =
+        `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7"/></svg>` +
+        `Grouped 3 research tabs, saved 2 articles for later, closed 1 duplicate.`;
+      result.classList.add("is-done");
+    };
+
+    const reset = () => {
+      list.innerHTML = initialList;
+      count.textContent = String(list.querySelectorAll(".d-tab").length);
+      prompt.textContent = "";
+      log.replaceChildren();
+      result.replaceChildren();
+      result.classList.remove("is-done");
+      caret.classList.remove("is-typing");
+    };
+
+    const steps: Step[] = [
+      { at: 700, run: typePrompt },
+      { at: 2100, run: () => addLog("tabs.query", "6 tabs") },
+      { at: 2750, run: () => addLog("browser_page · read", "6 pages") },
+      {
+        at: 3450,
+        run: () => {
+          addLog("tabs.group", "3 tabs");
+          showGroup("research");
+        },
+      },
+      {
+        at: 4250,
+        run: () => {
+          addLog("tabGroups.update", "“Research”");
+          nameGroups();
+        },
+      },
+      {
+        at: 5000,
+        run: () => {
+          addLog("bookmarks.create", "2 saved");
+          showGroup("reading");
+          nameGroups();
+          saveReading();
+        },
+      },
+      {
+        at: 5900,
+        run: () => {
+          addLog("tabs.remove", "1 duplicate");
+          closeDuplicate();
+        },
+      },
+      { at: 6700, run: finish },
+    ];
+    const loopAt = 11200;
+
+    const stop = () => {
+      timers.forEach(clearTimeout);
+      timers = [];
+      running = false;
+    };
+
+    const play = () => {
+      stop();
+      running = true;
+      reset();
+      for (const step of steps) timers.push(window.setTimeout(step.run, step.at));
+      timers.push(
+        window.setTimeout(() => {
+          const fade = reduce ? null : demo.animate([{ opacity: 1 }, { opacity: 0.35 }], { duration: 260, fill: "forwards" });
+          timers.push(
+            window.setTimeout(() => {
+              fade?.cancel();
+              if (inView && !hidden) play();
+              else running = false;
+            }, 300),
+          );
+        }, loopAt),
+      );
+    };
+
+    if (reduce) {
+      // Jump straight to the finished state without animations or looping.
+      typePrompt();
+      for (const step of steps.slice(1)) step.run();
+    } else {
+      const maybePlay = () => {
+        if (inView && !hidden && !running) play();
+        if ((!inView || hidden) && running) stop();
+      };
+      new IntersectionObserver(
+        ([entry]) => {
+          inView = entry.isIntersecting;
+          maybePlay();
+        },
+        { threshold: 0.35 },
+      ).observe(demo);
+      document.addEventListener("visibilitychange", () => {
+        hidden = document.hidden;
+        maybePlay();
+      });
+      demo.addEventListener("click", play);
+    }
+  }
+</script>

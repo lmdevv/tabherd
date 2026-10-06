@@ -1,0 +1,59 @@
+---
+/**
+ * Below-the-fold content for the landing page: three short feature notes that
+ * fade in as they scroll into view.
+ */
+const features = [
+  {
+    title: "Less tab chaos",
+    text: "Group a project, move it to its own window, save what matters, and close what’s finished.",
+    icon: "M2.5 5.5h11a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Zm0-3h5l1.5 2M1.5 8.5h13",
+  },
+  {
+    title: "Read beyond the title",
+    text: "Pull the text, links, forms, and buttons out of a page so your agent knows what you’re looking at.",
+    icon: "M3.5 2.5h7l2.5 2.5v8.5a1 1 0 0 1-1 1h-8.5a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1ZM5 7h6M5 9.5h6M5 12h3.5",
+  },
+  {
+    title: "Use the real browser",
+    text: "Click, type, navigate, and take screenshots in your existing profile, with the sessions you already have.",
+    icon: "M3 2.5 13.5 7.5 9 9 7 13.5 3 2.5Z",
+  },
+];
+
+---
+
+<section class="features" data-reveal>
+  {
+    features.map((feature) => (
+      <article>
+        <svg class="feature-icon" viewBox="0 0 16 16" aria-hidden="true">
+          <path d={feature.icon} />
+        </svg>
+        <h2>{feature.title}</h2>
+        <p>{feature.text}</p>
+      </article>
+    ))
+  }
+</section>
+
+<script>
+  const targets = document.querySelectorAll<HTMLElement>("[data-reveal]");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || !("IntersectionObserver" in window)) {
+    targets.forEach((el) => el.classList.add("is-visible"));
+  } else {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
+    );
+    targets.forEach((el) => observer.observe(el));
+  }
+</script>

@@ -1,0 +1,136 @@
+---
+/**
+ * The Tabby mark as inline SVG. The two folder-shaped "eyes" are drawn in the
+ * page background colour on top of the body so they can slide around to follow
+ * the pointer and squeeze shut to blink. Pass `static` for a non-animated copy.
+ */
+interface Props {
+  class?: string;
+  static?: boolean;
+}
+const { class: className, static: isStatic = false } = Astro.props;
+
+const folder =
+  "M28 0H110Q128 0 140 12L170 42Q182 50 198 50H227Q255 50 255 78V192Q255 220 227 220H28Q0 220 0 192V28Q0 0 28 0Z";
+const body = "M282 335H740A220 220 0 0 1 740 775H282A220 220 0 0 1 282 335Z";
+const tab = "M716 352C732 300 758 268 792 250Q804 242 818 242H900Q928 242 928 270V445H716Z";
+---
+
+<svg
+  class:list={["tabby-mark", className, { "is-live": !isStatic }]}
+  viewBox="50 232 920 556"
+  fill="none"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path class="mark-tab" d={tab}></path>
+  <path class="mark-body" d={body}></path>
+  <g class="eye" transform="translate(190 450)">
+    <path class="eye-shape" d={folder}></path>
+  </g>
+  <g class="eye" transform="translate(548 450)">
+    <path class="eye-shape" d={folder}></path>
+  </g>
+</svg>
+
+<style>
+  .tabby-mark {
+    display: block;
+    color: var(--tabby-ink);
+    overflow: visible;
+  }
+  .mark-tab {
+    fill: var(--tabby-orange);
+  }
+  .mark-body {
+    fill: currentColor;
+  }
+  .eye-shape {
+    fill: var(--sl-color-bg);
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+    transform: translate(calc(var(--look-x, 0) * 34px), calc(var(--look-y, 0) * 26px)) scaleY(1);
+  }
+  .eye.is-blinking .eye-shape {
+    transform: translate(calc(var(--look-x, 0) * 34px), calc(var(--look-y, 0) * 26px)) scaleY(0.06);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .is-live .eye-shape {
+      transition: transform 220ms cubic-bezier(0.25, 0.8, 0.3, 1);
+    }
+    .is-live .eye.is-blinking .eye-shape {
+      transition-duration: 70ms;
+    }
+  }
+</style>
+
+<script>
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const eyes = Array.from(document.querySelectorAll<SVGGElement>(".tabby-mark.is-live .eye"));
+
+  if (eyes.length > 0 && !reduceMotion.matches) {
+    let pointerX = 0;
+    let pointerY = 0;
+    let lastPointerAt = -Infinity;
+    let frame = 0;
+
+    const look = (eye: SVGGElement, x: number, y: number) => {
+      eye.style.setProperty("--look-x", x.toFixed(3));
+      eye.style.setProperty("--look-y", y.toFixed(3));
+    };
+
+    const trackPointer = () => {
+      for (const eye of eyes) {
+        const box = eye.getBoundingClientRect();
+        if (box.width === 0) continue;
+        const cx = box.left + box.width / 2;
+        const cy = box.top + box.height / 2;
+        const dx = pointerX - cx;
+        const dy = pointerY - cy;
+        const distance = Math.hypot(dx, dy) || 1;
+        // Full deflection a few eye-widths away; near the eye it eases toward center.
+        const reach = Math.max(140, box.width * 5);
+        const strength = Math.min(1, distance / reach);
+        look(eye, (dx / distance) * strength, (dy / distance) * strength);
+      }
+    };
+
+    window.addEventListener(
+      "pointermove",
+      (event) => {
+        if (event.pointerType === "touch") return;
+        pointerX = event.clientX;
+        pointerY = event.clientY;
+        lastPointerAt = performance.now();
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(trackPointer);
+      },
+      { passive: true },
+    );
+
+    // When the pointer has been still for a while, glance around on our own.
+    const glance = () => {
+      if (performance.now() - lastPointerAt > 2600) {
+        const idle = Math.random() < 0.45;
+        const angle = Math.random() * Math.PI * 2;
+        const strength = idle ? 0 : 0.25 + Math.random() * 0.55;
+        for (const eye of eyes) look(eye, Math.cos(angle) * strength, Math.sin(angle) * strength);
+      }
+      window.setTimeout(glance, 1800 + Math.random() * 2600);
+    };
+    window.setTimeout(glance, 1500);
+
+    const blink = () => {
+      const close = () => eyes.forEach((eye) => eye.classList.add("is-blinking"));
+      const open = () => eyes.forEach((eye) => eye.classList.remove("is-blinking"));
+      close();
+      window.setTimeout(open, 140);
+      if (Math.random() < 0.22) {
+        window.setTimeout(close, 320);
+        window.setTimeout(open, 460);
+      }
+      window.setTimeout(blink, 2400 + Math.random() * 4200);
+    };
+    window.setTimeout(blink, 900 + Math.random() * 1500);
+  }
+</script>
