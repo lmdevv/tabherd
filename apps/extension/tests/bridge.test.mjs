@@ -133,6 +133,11 @@ test("allowlist preserves receiver, rejects unknown methods, and reports actual 
     engine.dispatch("call", { method: "runtime.secret" }),
     /Unsupported browser method/,
   );
+  // Inherited object properties are not namespaces.
+  await assert.rejects(
+    engine.dispatch("call", { method: "constructor.name" }),
+    /Unsupported browser method/,
+  );
   await assert.rejects(
     engine.dispatch("call", { method: "tabs.remove" }),
     /unavailable in this browser/,

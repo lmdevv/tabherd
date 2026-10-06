@@ -16,7 +16,7 @@ export function createEngine(api: BrowserApi, chromium: boolean) {
   async function call(input: unknown) {
     const { method, args } = CallRequest.parse(input);
     const [namespace = "", name = ""] = method.split(".");
-    if (!API_METHODS[namespace]?.includes(name)) {
+    if (!Object.hasOwn(API_METHODS, namespace) || !API_METHODS[namespace]!.includes(name)) {
       throw new Error(
         `Unsupported browser method: ${method}. Use browser_capabilities to list available methods.`,
       );

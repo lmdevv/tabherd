@@ -4,6 +4,7 @@ import { connections, dispatch } from "./client";
 import { nativeHost } from "./native-host";
 import { install, uninstall, type BrowserName } from "./install";
 import { mcp } from "./mcp";
+import packageJson from "../package.json" with { type: "json" };
 
 const help = `Tabby — your browser, connected to your agent.
 
@@ -16,6 +17,7 @@ const help = `Tabby — your browser, connected to your agent.
   tabby page TAB_ID '{"action":"read"}' [--connection ID]
   tabby mcp
   tabby uninstall
+  tabby --version
 
 Browsers: chrome, chromium, edge, brave, firefox.
 Use --manifest-dir DIR for a custom browser native-host manifest location.
@@ -25,6 +27,10 @@ async function main() {
   const command = process.argv[2] ?? "help";
   // Browsers append origin/parent-window arguments to native-host launches.
   if (command === "native-host") return nativeHost();
+  if (["version", "--version", "-v"].includes(command)) {
+    process.stdout.write(`${packageJson.version}\n`);
+    return;
+  }
   if (command === "mcp") {
     if (process.argv.length !== 3) throw new Error("mcp does not accept arguments");
     return mcp();

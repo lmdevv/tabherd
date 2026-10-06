@@ -1,6 +1,7 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "agentGuidance": false,
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -18,14 +19,6 @@
       "persistent": true
     }
   },
-  "globalEnv": [
-    "CI",
-    "NODE_ENV",
-    "VERCEL",
-    "VERCEL_ENV",
-    "VERCEL_PROJECT_PRODUCTION_URL",
-    "VERCEL_URL",
-    "_VARLOCK_ENV_KEY"
-  ],
+  "globalEnv": ["CI", "NODE_ENV"],
   "globalDependencies": [".env*", "apps/*/.env*", "packages/*/.env*"]
 }

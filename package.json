@@ -26,8 +26,7 @@
     "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",
     "turbo": "^2.10.12",
-    "typescript": "^6.0.3",
-    "varlock": "1.18.0"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22.18.0"

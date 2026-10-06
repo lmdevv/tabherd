@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm check-types
+      - run: pnpm test
+      - run: pnpm exec oxlint
+      - run: pnpm exec oxfmt --check
+        if: runner.os == 'Linux'
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # Branded Chrome ignores --load-extension; use a Chromium build.
+      - uses: browser-actions/setup-chrome@v1
+        id: chromium
+        with:
+          chrome-version: latest
+          install-dependencies: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:browser
+        env:
+          TABBY_CHROMIUM: ${{ steps.chromium.outputs.chrome-path }}
