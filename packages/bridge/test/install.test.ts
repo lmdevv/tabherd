@@ -2,12 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, writeFile, readFile, stat, rm, chmod } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, stat, rm, chmod, mkdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HOST_NAME, FIREFOX_ID } from "@tabherd/protocol";
 import { launcherText, registration, type BrowserName } from "../src/install";
+import { socketAddress } from "../src/paths";
 
 const exec = promisify(execFile);
 const entry = fileURLToPath(new URL("../dist/index.js", import.meta.url));
@@ -113,12 +114,11 @@ test(
         launcher = join(dir, "launch.cmd");
       await writeFile(target, "process.stdout.write(JSON.stringify(process.argv.slice(2)));");
       await writeFile(launcher, launcherText("win32", process.execPath, target));
-      const { stdout } = await exec("cmd.exe", [
-        "/d",
-        "/s",
-        "/c",
-        `""${launcher}" origin add-on-id"`,
-      ]);
+      const { stdout } = await exec(
+        "cmd.exe",
+        ["/d", "/s", "/c", `""${launcher}" origin add-on-id"`],
+        { windowsVerbatimArguments: true },
+      );
       assert.deepEqual(JSON.parse(stdout), ["native-host", "origin", "add-on-id"]);
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -205,6 +205,31 @@ test(
       assert.equal(await readFile(unrelated, "utf8"), "keep");
       assert.deepEqual(JSON.parse((await cli(["uninstall"])).stdout).removed, []);
     } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "socket paths stay short and refuse a socket directory replaced with a link",
+  { skip: process.platform === "win32" },
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-socket-"));
+    const previous = process.env.TMPDIR;
+    try {
+      const address = await socketAddress(crypto.randomUUID());
+      assert.ok(Buffer.byteLength(address) <= 100, address);
+      assert.equal((await stat(dirname(address))).mode & 0o777, 0o700);
+      if (process.platform !== "linux") return;
+      // On Linux the socket directory follows TMPDIR, so a planted link is testable.
+      process.env.TMPDIR = dir;
+      const elsewhere = join(dir, "elsewhere");
+      await mkdir(elsewhere);
+      await symlink(elsewhere, join(dir, basename(dirname(address))));
+      await assert.rejects(socketAddress(crypto.randomUUID()), /not a private directory/);
+    } finally {
+      if (previous === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = previous;
       await rm(dir, { recursive: true, force: true });
     }
   },
