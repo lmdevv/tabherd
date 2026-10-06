@@ -1,8 +1,8 @@
 ---
 /**
  * The Tabby mark as inline SVG. The two folder-shaped "eyes" are drawn in the
- * page background colour on top of the body so they can slide around to follow
- * the pointer and squeeze shut to blink. Pass `static` for a non-animated copy.
+ * page background colour on top of the body so they can glance around and
+ * squeeze shut to blink. Pass `static` for a non-animated copy.
  */
 interface Props {
   class?: string;
@@ -49,88 +49,198 @@ const tab = "M716 352C732 300 758 268 792 250Q804 242 818 242H900Q928 242 928 27
     fill: var(--sl-color-bg);
     transform-box: fill-box;
     transform-origin: 50% 50%;
-    transform: translate(calc(var(--look-x, 0) * 34px), calc(var(--look-y, 0) * 26px)) scaleY(1);
-  }
-  .eye.is-blinking .eye-shape {
-    transform: translate(calc(var(--look-x, 0) * 34px), calc(var(--look-y, 0) * 26px)) scaleY(0.06);
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .is-live .eye-shape {
-      transition: transform 220ms cubic-bezier(0.25, 0.8, 0.3, 1);
-    }
-    .is-live .eye.is-blinking .eye-shape {
-      transition-duration: 70ms;
-    }
   }
 </style>
 
 <script>
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  const eyes = Array.from(document.querySelectorAll<SVGGElement>(".tabby-mark.is-live .eye"));
+  /**
+   * A small gaze model, so the mark feels alive rather than glued to the cursor.
+   * Real eyes hold a fixation, then jump to the next one in a quick saccade with
+   * a little overshoot. They ignore small movements, react after a short delay,
+   * lose interest, look away, and often blink on big jumps. The pointer is only
+   * one of the things the mark might choose to look at.
+   */
+  const MAX_X = 34;
+  const MAX_Y = 26;
+  // Spring for the gaze: fast with a slight overshoot, like a saccade.
+  const OMEGA = 30;
+  const ZETA = 0.68;
+  // Ignore pointer movements that would shift the gaze less than this.
+  const DEADZONE = 0.2;
 
-  if (eyes.length > 0 && !reduceMotion.matches) {
-    let pointerX = 0;
-    let pointerY = 0;
-    let lastPointerAt = -Infinity;
-    let frame = 0;
+  const rand = (min: number, max: number) => min + Math.random() * (max - min);
+  const easeIn = (t: number) => t * t;
+  const easeOut = (t: number) => 1 - (1 - t) * (1 - t);
 
-    const look = (eye: SVGGElement, x: number, y: number) => {
-      eye.style.setProperty("--look-x", x.toFixed(3));
-      eye.style.setProperty("--look-y", y.toFixed(3));
+  const animate = (svg: SVGSVGElement) => {
+    const shapes = Array.from(svg.querySelectorAll<SVGPathElement>(".eye-shape"));
+
+    const gaze = { x: 0, y: 0, vx: 0, vy: 0 };
+    const target = { x: 0, y: 0 };
+    const pointer = { x: 0, y: 0, at: -Infinity };
+    let interest = 0;
+    let engaged = false;
+    let engagedUntil = 0;
+    let patience = 0;
+    let saccadeAt = 0;
+    let nextFixationAt = performance.now() + rand(800, 1600);
+    let cooldownUntil = 0;
+    let blinkStart = -Infinity;
+    let secondBlinkAt = 0;
+    let nextBlinkAt = performance.now() + rand(900, 2400);
+
+    const towardPointer = () => {
+      const box = svg.getBoundingClientRect();
+      const dx = pointer.x - (box.left + box.width / 2);
+      const dy = pointer.y - (box.top + box.height / 2);
+      const distance = Math.hypot(dx, dy) || 1;
+      // Saturates gently: barely moves for nearby targets, never pins to the edge.
+      const reach = Math.max(180, box.width * 4);
+      const amount = Math.tanh(distance / reach) * 0.9;
+      return { x: (dx / distance) * amount, y: (dy / distance) * amount };
     };
 
-    const trackPointer = () => {
-      for (const eye of eyes) {
-        const box = eye.getBoundingClientRect();
-        if (box.width === 0) continue;
-        const cx = box.left + box.width / 2;
-        const cy = box.top + box.height / 2;
-        const dx = pointerX - cx;
-        const dy = pointerY - cy;
-        const distance = Math.hypot(dx, dy) || 1;
-        // Full deflection a few eye-widths away; near the eye it eases toward center.
-        const reach = Math.max(140, box.width * 5);
-        const strength = Math.min(1, distance / reach);
-        look(eye, (dx / distance) * strength, (dy / distance) * strength);
+    const blink = (now: number) => {
+      blinkStart = now;
+      secondBlinkAt = Math.random() < 0.18 ? now + rand(300, 380) : 0;
+      nextBlinkAt = now + rand(3200, 7500);
+    };
+
+    const saccade = (now: number, x: number, y: number) => {
+      const jump = Math.hypot(x - gaze.x, y - gaze.y);
+      target.x = x;
+      target.y = y;
+      // Big gaze shifts are often accompanied by a blink.
+      if (jump > 0.55 && Math.random() < 0.4 && now - blinkStart > 900) blink(now);
+    };
+
+    const wander = (now: number) => {
+      if (Math.random() < 0.55) {
+        // Rest: roughly ahead, a touch low.
+        saccade(now, rand(-0.08, 0.08), rand(0.05, 0.15));
+      } else {
+        const angle = rand(0, Math.PI * 2);
+        const amount = rand(0.3, 0.7);
+        saccade(now, Math.cos(angle) * amount, Math.sin(angle) * amount);
+      }
+      nextFixationAt = now + rand(900, 2800);
+    };
+
+    const engage = (now: number) => {
+      engaged = true;
+      engagedUntil = now + rand(1600, 4500);
+      patience = rand(1200, 2600); // how long it keeps watching a still pointer
+      saccadeAt = now + rand(140, 320); // reaction time
+    };
+
+    const disengage = (now: number) => {
+      engaged = false;
+      saccadeAt = 0;
+      interest *= 0.3;
+      cooldownUntil = now + rand(900, 1800);
+      wander(now);
+    };
+
+    const think = (now: number, dt: number) => {
+      interest *= Math.exp(-dt / 1.8);
+      const pointerFresh = now - pointer.at < 1400;
+
+      if (engaged) {
+        if (now - pointer.at > patience || now > engagedUntil) return disengage(now);
+        const want = towardPointer();
+        if (!saccadeAt && Math.hypot(want.x - target.x, want.y - target.y) > DEADZONE) {
+          saccadeAt = now + rand(120, 260);
+        }
+        if (saccadeAt && now >= saccadeAt) {
+          saccadeAt = 0;
+          // Land near the target, not exactly on it.
+          saccade(now, want.x + rand(-0.06, 0.06), want.y + rand(-0.05, 0.05));
+        }
+        return;
+      }
+
+      // A sudden, large movement can catch its eye mid-thought.
+      if (pointerFresh && interest > 0.55 && now > cooldownUntil) return engage(now);
+      if (now >= nextFixationAt) {
+        if (pointerFresh && Math.random() < 0.25 + interest * 0.7) engage(now);
+        else wander(now);
       }
     };
+
+    const lidAt = (now: number) => {
+      if (secondBlinkAt && now >= secondBlinkAt) {
+        blinkStart = secondBlinkAt;
+        secondBlinkAt = 0;
+      }
+      const t = now - blinkStart;
+      if (t < 0 || t > 290) return 0;
+      if (t < 75) return easeIn(t / 75); // close fast
+      if (t < 115) return 1; // hold
+      return 1 - easeOut((t - 115) / 175); // open a little slower
+    };
+
+    const step = (dt: number) => {
+      const steps = Math.ceil(dt / (1 / 120));
+      const h = dt / steps;
+      for (let i = 0; i < steps; i++) {
+        gaze.vx += (OMEGA * OMEGA * (target.x - gaze.x) - 2 * ZETA * OMEGA * gaze.vx) * h;
+        gaze.vy += (OMEGA * OMEGA * (target.y - gaze.y) - 2 * ZETA * OMEGA * gaze.vy) * h;
+        gaze.x += gaze.vx * h;
+        gaze.y += gaze.vy * h;
+      }
+    };
+
+    const render = (lid: number) => {
+      const transform = `translate(${(gaze.x * MAX_X).toFixed(2)}px, ${(gaze.y * MAX_Y).toFixed(2)}px) scaleY(${(1 - 0.94 * lid).toFixed(3)})`;
+      for (const shape of shapes) shape.style.transform = transform;
+    };
+
+    let frame = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (now >= nextBlinkAt) blink(now);
+      think(now, dt);
+      step(dt);
+      render(lidAt(now));
+      frame = requestAnimationFrame(tick);
+    };
+
+    // Only animate while the mark is on screen and the tab is visible.
+    let onScreen = false;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      if (!onScreen || document.hidden) return;
+      last = performance.now();
+      frame = requestAnimationFrame(tick);
+    };
+    new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      update();
+    }).observe(svg);
+    document.addEventListener("visibilitychange", update);
 
     window.addEventListener(
       "pointermove",
       (event) => {
         if (event.pointerType === "touch") return;
-        pointerX = event.clientX;
-        pointerY = event.clientY;
-        lastPointerAt = performance.now();
-        cancelAnimationFrame(frame);
-        frame = requestAnimationFrame(trackPointer);
+        const moved = Number.isFinite(pointer.at)
+          ? Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y)
+          : 0;
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        pointer.at = performance.now();
+        interest = Math.min(1, interest + moved / 700);
       },
       { passive: true },
     );
+    document.documentElement.addEventListener("pointerleave", () => {
+      pointer.at = -Infinity;
+    });
+  };
 
-    // When the pointer has been still for a while, glance around on our own.
-    const glance = () => {
-      if (performance.now() - lastPointerAt > 2600) {
-        const idle = Math.random() < 0.45;
-        const angle = Math.random() * Math.PI * 2;
-        const strength = idle ? 0 : 0.25 + Math.random() * 0.55;
-        for (const eye of eyes) look(eye, Math.cos(angle) * strength, Math.sin(angle) * strength);
-      }
-      window.setTimeout(glance, 1800 + Math.random() * 2600);
-    };
-    window.setTimeout(glance, 1500);
-
-    const blink = () => {
-      const close = () => eyes.forEach((eye) => eye.classList.add("is-blinking"));
-      const open = () => eyes.forEach((eye) => eye.classList.remove("is-blinking"));
-      close();
-      window.setTimeout(open, 140);
-      if (Math.random() < 0.22) {
-        window.setTimeout(close, 320);
-        window.setTimeout(open, 460);
-      }
-      window.setTimeout(blink, 2400 + Math.random() * 4200);
-    };
-    window.setTimeout(blink, 900 + Math.random() * 1500);
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.querySelectorAll<SVGSVGElement>(".tabby-mark.is-live").forEach(animate);
   }
 </script>
