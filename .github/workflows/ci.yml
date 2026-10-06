@@ -48,4 +48,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:browser
         env:
-          TABBY_CHROMIUM: ${{ steps.chromium.outputs.chrome-path }}
+          TABHERD_CHROMIUM: ${{ steps.chromium.outputs.chrome-path }}

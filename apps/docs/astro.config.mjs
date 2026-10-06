@@ -6,7 +6,7 @@ export default defineConfig({
   devToolbar: { enabled: false },
   integrations: [
     starlight({
-      title: "Tabby",
+      title: "Tabherd",
       customCss: ["./src/styles/brand.css"],
       credits: false,
       expressiveCode: { themes: ["github-light", "github-dark"] },

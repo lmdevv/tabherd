@@ -22,16 +22,16 @@ const extension = join(root, "apps/extension/dist/chrome-mv3");
 const extensionId = Array.from(createHash("sha256").update(extension).digest("hex").slice(0, 32))
   .map((c) => String.fromCharCode(97 + parseInt(c, 16)))
   .join("");
-const base = await mkdtemp(join(tmpdir(), "tabby-browser-smoke-"));
+const base = await mkdtemp(join(tmpdir(), "tabherd-browser-smoke-"));
 const profile = join(base, "profile");
 const env = {
   ...process.env,
-  TABBY_STATE_DIR: join(base, "state"),
+  TABHERD_STATE_DIR: join(base, "state"),
   XDG_CONFIG_HOME: join(base, "xdg"),
 };
 const fixture = createServer((_request, response) => {
   response.setHeader("content-type", "text/html");
-  response.end(`<!doctype html><title>Tabby fixture</title><style>body{font:18px sans-serif}#space{height:2000px}</style>
+  response.end(`<!doctype html><title>Tabherd fixture</title><style>body{font:18px sans-serif}#space{height:2000px}</style>
     <h1>Research about local browser control</h1><label>Name <input id="name"></label>
     <button id="save">Save</button><select id="choice"><option value="a">Alpha</option><option value="b">Beta</option></select>
     <a href="/reference">Reference</a><p id="result">Waiting</p><div id="space"></div>
@@ -67,7 +67,7 @@ try {
     ]);
   }
   chrome = spawn(
-    process.env.TABBY_CHROMIUM ?? "chromium",
+    process.env.TABHERD_CHROMIUM ?? "chromium",
     [
       "--headless=new",
       "--no-sandbox",
@@ -97,7 +97,7 @@ try {
   }
   assert.equal(connections.length, 1, `Extension failed to connect. ${logs}`);
   assert.equal(connections[0].extensionId, extensionId);
-  client = new Client({ name: "tabby-browser-smoke", version: "1" });
+  client = new Client({ name: "tabherd-browser-smoke", version: "1" });
   await client.connect(
     new StdioClientTransport({ command: process.execPath, args: [entry, "mcp"], env }),
   );
@@ -118,18 +118,18 @@ try {
   let read;
   for (let i = 0; i < 40; i++) {
     read = await page(a.id, "read");
-    if (read.title === "Tabby fixture") break;
+    if (read.title === "Tabherd fixture") break;
     await delay(50);
   }
   assert.match(read.text, /Research about local browser control/);
   assert.ok(read.elements.some((element) => element.selector === "#name"));
   assert.equal((await page(a.id, "read", { maxTextLength: 10 })).text.length, 10);
-  await page(a.id, "type", { selector: "#name", text: "Tabby" });
+  await page(a.id, "type", { selector: "#name", text: "Tabherd" });
   await page(a.id, "press", { selector: "#name", key: "End" });
   await page(a.id, "click", { selector: "#save" });
   assert.equal(
     await page(a.id, "evaluate", { expression: "document.getElementById('result').textContent" }),
-    "Saved Tabby",
+    "Saved Tabherd",
   );
   const events = await page(a.id, "evaluate", { expression: "window.events" });
   assert.ok(events.some((event) => event.type === "input" && event.trusted));
@@ -156,7 +156,7 @@ try {
   const window = await call("windows.create", [{ tabId: c.id, focused: false }]);
   await call("tabs.move", [[b.id], { windowId: window.id, index: -1 }]);
   assert.equal((await call("tabs.get", [b.id])).windowId, window.id);
-  const folder = await call("bookmarks.create", [{ title: "Tabby smoke test" }]);
+  const folder = await call("bookmarks.create", [{ title: "Tabherd smoke test" }]);
   const bookmark = await call("bookmarks.create", [
     { parentId: folder.id, title: read.title, url: read.url },
   ]);
@@ -181,9 +181,9 @@ try {
   assert.equal(stopped[0].status, "error");
   assert.equal(stopped[1].status, "skipped");
   assert.equal((await call("tabs.get", [a.id])).id, a.id);
-  await call("cookies.set", [{ url, name: "tabby-test", value: "ok" }]);
-  assert.equal((await call("cookies.get", [{ url, name: "tabby-test" }])).value, "ok");
-  await call("cookies.remove", [{ url, name: "tabby-test" }]);
+  await call("cookies.set", [{ url, name: "tabherd-test", value: "ok" }]);
+  assert.equal((await call("cookies.get", [{ url, name: "tabherd-test" }])).value, "ok");
+  await call("cookies.remove", [{ url, name: "tabherd-test" }]);
   await call("bookmarks.removeTree", [folder.id]);
   await call("tabs.remove", [[a.id, b.id, c.id]]);
   assert.ok(!(await call("tabs.query", [{}])).some((tab) => [a.id, b.id, c.id].includes(tab.id)));

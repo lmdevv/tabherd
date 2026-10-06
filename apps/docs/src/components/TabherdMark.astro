@@ -1,6 +1,6 @@
 ---
 /**
- * The Tabby mark as inline SVG. The two folder-shaped "eyes" are drawn in the
+ * The Tabherd mark as inline SVG. The two folder-shaped "eyes" are drawn in the
  * page background colour on top of the body so they can glance around and
  * squeeze shut to blink. Pass `static` for a non-animated copy.
  */
@@ -17,7 +17,7 @@ const tab = "M716 352C732 300 758 268 792 250Q804 242 818 242H900Q928 242 928 27
 ---
 
 <svg
-  class:list={["tabby-mark", className, { "is-live": !isStatic }]}
+  class:list={["tabherd-mark", className, { "is-live": !isStatic }]}
   viewBox="50 232 920 556"
   fill="none"
   aria-hidden="true"
@@ -34,13 +34,13 @@ const tab = "M716 352C732 300 758 268 792 250Q804 242 818 242H900Q928 242 928 27
 </svg>
 
 <style>
-  .tabby-mark {
+  .tabherd-mark {
     display: block;
-    color: var(--tabby-ink);
+    color: var(--tabherd-ink);
     overflow: visible;
   }
   .mark-tab {
-    fill: var(--tabby-orange);
+    fill: var(--tabherd-orange);
   }
   .mark-body {
     fill: currentColor;
@@ -241,6 +241,6 @@ const tab = "M716 352C732 300 758 268 792 250Q804 242 818 242H900Q928 242 928 27
   };
 
   if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    document.querySelectorAll<SVGSVGElement>(".tabby-mark.is-live").forEach(animate);
+    document.querySelectorAll<SVGSVGElement>(".tabherd-mark.is-live").forEach(animate);
   }
 </script>

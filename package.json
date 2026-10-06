@@ -1,6 +1,8 @@
 {
-  "name": "tabby",
+  "name": "tabherd",
+  "version": "0.0.1",
   "private": true,
+  "license": "MIT",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -11,17 +13,17 @@
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "check": "oxlint && oxfmt --write",
-    "test": "pnpm --filter @tabby/bridge build && pnpm --filter @tabby/bridge test && pnpm --filter extension test",
+    "test": "pnpm --filter tabherd build && pnpm --filter tabherd test && pnpm --filter extension test",
     "build:firefox": "pnpm --filter extension build:firefox",
-    "tabby": "node packages/bridge/dist/index.js",
+    "tabherd": "node packages/bridge/dist/index.js",
     "format": "oxfmt --write",
-    "test:browser": "pnpm --filter @tabby/bridge build && pnpm --filter extension build && node packages/bridge/test/browser-smoke.mjs"
+    "test:browser": "pnpm --filter tabherd build && pnpm --filter extension build && node packages/bridge/test/browser-smoke.mjs"
   },
   "dependencies": {
     "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@tabby/config": "workspace:*",
+    "@tabherd/config": "workspace:*",
     "@types/node": "^26.4.1",
     "oxfmt": "^0.66.0",
     "oxlint": "^1.81.0",

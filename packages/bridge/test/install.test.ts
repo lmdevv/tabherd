@@ -6,7 +6,7 @@ import { mkdtemp, writeFile, readFile, stat, rm, chmod } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOST_NAME, FIREFOX_ID } from "@tabby/protocol";
+import { HOST_NAME, FIREFOX_ID } from "@tabherd/protocol";
 import { launcherText, registration, type BrowserName } from "../src/install";
 
 const exec = promisify(execFile);
@@ -61,21 +61,21 @@ test(
   "POSIX launcher quotes arguments and embeds the configured state directory",
   { skip: process.platform === "win32" },
   async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tabby-launcher-"));
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-launcher-"));
     try {
       const target = join(dir, "entry' $(never-execute).mjs"),
         launcher = join(dir, "launch"),
         state = join(dir, "state' $(literal)");
       await writeFile(
         target,
-        "process.stdout.write(JSON.stringify({args:process.argv.slice(2),state:process.env.TABBY_STATE_DIR}));",
+        "process.stdout.write(JSON.stringify({args:process.argv.slice(2),state:process.env.TABHERD_STATE_DIR}));",
       );
       await writeFile(launcher, launcherText("linux", process.execPath, target, state));
       await chmod(launcher, 0o700);
       const { stdout } = await exec(
         launcher,
         ["chrome-extension://abc/", "$(literal)", "with spaces"],
-        { env: { ...process.env, TABBY_STATE_DIR: "wrong-state" } },
+        { env: { ...process.env, TABHERD_STATE_DIR: "wrong-state" } },
       );
       assert.deepEqual(JSON.parse(stdout), {
         args: ["native-host", "chrome-extension://abc/", "$(literal)", "with spaces"],
@@ -91,7 +91,7 @@ test("Windows launcher quotes paths, escapes environment expansion and rejects m
   const text = launcherText(
     "win32",
     "C:\\Program Files\\node.exe",
-    "C:\\user%name\\tabby.js",
+    "C:\\user%name\\tabherd.js",
     "C:\\state%name",
   );
   assert.ok(text.includes("user%%name"));
@@ -107,7 +107,7 @@ test(
   "Windows launcher works with absolute executable and entry paths",
   { skip: process.platform !== "win32" },
   async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tabby-launcher-"));
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-launcher-"));
     try {
       const target = join(dir, "entry with spaces.mjs"),
         launcher = join(dir, "launch.cmd");
@@ -130,12 +130,14 @@ test(
   "CLI setup records browser-specific manifests and uninstall removes only registered files",
   { skip: process.platform === "win32", timeout: 20000 },
   async () => {
-    const dir = await mkdtemp(join(tmpdir(), "tabby-install-")),
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-install-")),
       state = join(dir, "state"),
       firefoxDir = join(dir, "firefox"),
       chromeDir = join(dir, "chrome");
     const cli = (args: string[]) =>
-      exec(process.execPath, [entry, ...args], { env: { ...process.env, TABBY_STATE_DIR: state } });
+      exec(process.execPath, [entry, ...args], {
+        env: { ...process.env, TABHERD_STATE_DIR: state },
+      });
     try {
       await assert.rejects(
         cli([

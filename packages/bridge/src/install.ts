@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { access, mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { HOST_NAME, FIREFOX_ID } from "@tabby/protocol";
+import { HOST_NAME, FIREFOX_ID } from "@tabherd/protocol";
 import { prepareState, stateDirectory } from "./paths";
 
 const exec = promisify(execFile);
@@ -74,9 +74,9 @@ export function launcherText(platform: string, node: string, entry: string, stat
     if ([node, entry, ...(state ? [state] : [])].some((v) => v.includes('"')))
       throw new Error("Invalid Windows launcher path");
     const escape = (v: string) => v.replaceAll("%", "%%");
-    return `@echo off\r\nsetlocal DisableDelayedExpansion\r\n${state ? `set "TABBY_STATE_DIR=${escape(state)}"\r\n` : ""}"${escape(node)}" "${escape(entry)}" native-host %*\r\n`;
+    return `@echo off\r\nsetlocal DisableDelayedExpansion\r\n${state ? `set "TABHERD_STATE_DIR=${escape(state)}"\r\n` : ""}"${escape(node)}" "${escape(entry)}" native-host %*\r\n`;
   }
-  return `#!/bin/sh\n${state ? `export TABBY_STATE_DIR=${quote(state)}\n` : ""}exec ${quote(node)} ${quote(entry)} native-host "$@"\n`;
+  return `#!/bin/sh\n${state ? `export TABHERD_STATE_DIR=${quote(state)}\n` : ""}exec ${quote(node)} ${quote(entry)} native-host "$@"\n`;
 }
 export interface InstallOptions {
   browsers: BrowserName[];
@@ -109,7 +109,7 @@ export async function install(options: InstallOptions) {
       reg.manifestPath = join(resolve(options.manifestDirectory), `${HOST_NAME}.json`);
     const manifest = {
       name: HOST_NAME,
-      description: "Tabby local browser bridge",
+      description: "Tabherd local browser bridge",
       path: launcher,
       type: "stdio",
       ...(browser === "firefox"
@@ -149,7 +149,7 @@ export async function install(options: InstallOptions) {
     launcher,
     node,
     entry,
-    next: "Enable or reload the extension, wait up to one minute, then run tabby status",
+    next: "Enable or reload the extension, wait up to one minute, then run tabherd status",
   };
 }
 async function readInstallState(): Promise<Registration[]> {

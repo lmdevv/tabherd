@@ -7,9 +7,9 @@ export default defineBackground({
     const bridge = createBridge(browser, chromium);
     browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (sender.id !== browser.runtime.id) return;
-      if (message?.type === "tabby-status") {
+      if (message?.type === "tabherd-status") {
         sendResponse(bridge.getStatus());
-      } else if (message?.type === "tabby-reconnect") {
+      } else if (message?.type === "tabherd-reconnect") {
         bridge.reconnect().then(sendResponse);
         return true;
       }

@@ -9,7 +9,7 @@ import {
   Hello,
   errorMessage,
   type BridgeMethod,
-} from "@tabby/protocol";
+} from "@tabherd/protocol";
 import { type Connection } from "./native-host";
 import { LineDecoder, line } from "./framing";
 import { stateDirectory } from "./paths";
@@ -113,11 +113,11 @@ export async function dispatch(method: BridgeMethod, raw: unknown = {}): Promise
     : connections;
   if (!matching.length)
     throw new Error(
-      "No matching browser connected. Run tabby setup, reload the extension, then tabby status.",
+      "No matching browser connected. Run tabherd setup, reload the extension, then tabherd status.",
     );
   if (matching.length > 1)
     throw new Error(
-      "Multiple browser profiles connected; provide connectionId from browser_connections or tabby status.",
+      "Multiple browser profiles connected; provide connectionId from browser_connections or tabherd status.",
     );
   return request(matching[0]!, method, input);
 }

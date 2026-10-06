@@ -1,9 +1,9 @@
 ---
 title: Workflows
-description: A few useful things to ask your agent to do with Tabby.
+description: A few useful things to ask your agent to do with Tabherd.
 ---
 
-Tell your agent the outcome you want. Tabby gives it browser tools; the agent supplies the reasoning. Start by listing tabs and reading relevant pages.
+Tell your agent the outcome you want. Tabherd gives it browser tools; the agent supplies the reasoning. Start by listing tabs and reading relevant pages.
 
 ## Tidy a workspace
 

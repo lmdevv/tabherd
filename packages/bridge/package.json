@@ -1,11 +1,37 @@
 {
-  "name": "@tabby/bridge",
-  "version": "0.1.0",
-  "private": true,
-  "bin": {
-    "tabby": "dist/index.js"
+  "name": "tabherd",
+  "version": "0.0.1",
+  "description": "Your browser, connected to your agent. Local MCP server and CLI for the Tabherd browser extension.",
+  "keywords": [
+    "agent",
+    "browser",
+    "chrome-extension",
+    "firefox",
+    "mcp",
+    "model-context-protocol",
+    "native-messaging",
+    "tabs"
+  ],
+  "homepage": "https://github.com/lmdevv/tabherd#readme",
+  "bugs": {
+    "url": "https://github.com/lmdevv/tabherd/issues"
   },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lmdevv/tabherd.git",
+    "directory": "packages/bridge"
+  },
+  "bin": {
+    "tabherd": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "node build.mjs",
     "check-types": "tsc --noEmit",
@@ -13,13 +39,16 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@tabby/protocol": "workspace:*",
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@tabherd/protocol": "workspace:*",
     "@types/node": "^26.4.1",
     "esbuild": "^0.27.4",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.18.0"
   }
 }

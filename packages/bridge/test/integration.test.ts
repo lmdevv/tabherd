@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { once } from "node:events";
 import { createConnection } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
-import { PROTOCOL_VERSION } from "@tabby/protocol";
+import { PROTOCOL_VERSION } from "@tabherd/protocol";
 import { connections, dispatch, discover, request } from "../src/client";
 import { FrameDecoder, LineDecoder, encodeFrame } from "../src/framing";
 
@@ -22,7 +22,7 @@ type Forwarded = {
 };
 function browser(state: string, profile: string) {
   const host = spawn(process.execPath, [entry, "native-host"], {
-    env: { ...process.env, TABBY_STATE_DIR: state },
+    env: { ...process.env, TABHERD_STATE_DIR: state },
   });
   const decoder = new FrameDecoder(),
     calls: Forwarded[] = [];
@@ -137,14 +137,16 @@ test(
   "authenticated native messaging transports CLI and MCP operations without retrying mutations",
   { timeout: 30000 },
   async () => {
-    const state = await mkdtemp(join(tmpdir(), "tabby-integration-")),
-      previous = process.env.TABBY_STATE_DIR;
-    process.env.TABBY_STATE_DIR = state;
+    const state = await mkdtemp(join(tmpdir(), "tabherd-integration-")),
+      previous = process.env.TABHERD_STATE_DIR;
+    process.env.TABHERD_STATE_DIR = state;
     const a = browser(state, "profile-a"),
       b = browser(state, "profile-b");
     let mcp: ChildProcessWithoutNullStreams | undefined;
     const cli = (args: string[]) =>
-      exec(process.execPath, [entry, ...args], { env: { ...process.env, TABBY_STATE_DIR: state } });
+      exec(process.execPath, [entry, ...args], {
+        env: { ...process.env, TABHERD_STATE_DIR: state },
+      });
     try {
       let live = await discover();
       for (let attempt = 0; live.length < 2 && attempt < 100; attempt++) {
@@ -293,7 +295,7 @@ test(
       assert.equal(b.calls.length, before);
 
       mcp = spawn(process.execPath, [entry, "mcp"], {
-        env: { ...process.env, TABBY_STATE_DIR: state },
+        env: { ...process.env, TABHERD_STATE_DIR: state },
       });
       const client = rpc(mcp);
       const initialized = await client.call("initialize", {
@@ -381,8 +383,8 @@ test(
       assert.equal(unavailable.result.isError, true);
     } finally {
       await Promise.all([close(a.host), close(b.host), ...(mcp ? [close(mcp)] : [])]);
-      if (previous === undefined) delete process.env.TABBY_STATE_DIR;
-      else process.env.TABBY_STATE_DIR = previous;
+      if (previous === undefined) delete process.env.TABHERD_STATE_DIR;
+      else process.env.TABHERD_STATE_DIR = previous;
       await rm(state, { recursive: true, force: true });
     }
   },
@@ -392,7 +394,7 @@ test(
   "native host rejects malformed browser input and exits with clean registry",
   { timeout: 10000 },
   async () => {
-    const state = await mkdtemp(join(tmpdir(), "tabby-invalid-native-"));
+    const state = await mkdtemp(join(tmpdir(), "tabherd-invalid-native-"));
     try {
       const invalidHello = encodeFrame({ type: "hello", version: 999 });
       const validHello = encodeFrame({
@@ -410,7 +412,7 @@ test(
         Buffer.concat([invalidHello, validHello]),
       ]) {
         const host = spawn(process.execPath, [entry, "native-host"], {
-          env: { ...process.env, TABBY_STATE_DIR: state },
+          env: { ...process.env, TABHERD_STATE_DIR: state },
         });
         let output = "";
         host.stderr.on("data", (chunk) => {

@@ -1,4 +1,10 @@
-import { API_METHODS, BatchRequest, CallRequest, PageRequest, errorMessage } from "@tabby/protocol";
+import {
+  API_METHODS,
+  BatchRequest,
+  CallRequest,
+  PageRequest,
+  errorMessage,
+} from "@tabherd/protocol";
 import { createPageController } from "./page.ts";
 
 // Dynamic namespaces differ by browser. The allowlist is the public boundary.

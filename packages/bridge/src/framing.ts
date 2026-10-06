@@ -1,5 +1,5 @@
 import { endianness } from "node:os";
-import { MAX_MESSAGE_BYTES } from "@tabby/protocol";
+import { MAX_MESSAGE_BYTES } from "@tabherd/protocol";
 
 export function encodeFrame(value: unknown): Buffer {
   const payload = Buffer.from(JSON.stringify(value), "utf8");

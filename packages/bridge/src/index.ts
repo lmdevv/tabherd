@@ -1,23 +1,23 @@
 import { parseArgs } from "node:util";
-import { errorMessage } from "@tabby/protocol";
+import { errorMessage } from "@tabherd/protocol";
 import { connections, dispatch } from "./client";
 import { nativeHost } from "./native-host";
 import { install, uninstall, type BrowserName } from "./install";
 import { mcp } from "./mcp";
 import packageJson from "../package.json" with { type: "json" };
 
-const help = `Tabby — your browser, connected to your agent.
+const help = `Tabherd — your browser, connected to your agent.
 
-  tabby setup --browser chrome --extension-id ID
-  tabby setup --browser firefox
-  tabby status
-  tabby capabilities [--connection ID]
-  tabby call METHOD '[ARG,...]' [--connection ID]
-  tabby batch '[{"method":"tabs.query","args":[{}]}]' [--continue-on-error]
-  tabby page TAB_ID '{"action":"read"}' [--connection ID]
-  tabby mcp
-  tabby uninstall
-  tabby --version
+  tabherd setup --browser chrome --extension-id ID
+  tabherd setup --browser firefox
+  tabherd status
+  tabherd capabilities [--connection ID]
+  tabherd call METHOD '[ARG,...]' [--connection ID]
+  tabherd batch '[{"method":"tabs.query","args":[{}]}]' [--continue-on-error]
+  tabherd page TAB_ID '{"action":"read"}' [--connection ID]
+  tabherd mcp
+  tabherd uninstall
+  tabherd --version
 
 Browsers: chrome, chromium, edge, brave, firefox.
 Use --manifest-dir DIR for a custom browser native-host manifest location.
@@ -53,7 +53,7 @@ async function main() {
   }
   const expect = (n: number) => {
     if (positionals.length !== n)
-      throw new Error(`Expected ${n} positional arguments for ${command}. Run tabby help.`);
+      throw new Error(`Expected ${n} positional arguments for ${command}. Run tabherd help.`);
   };
   const allowedOptions: Record<string, string[]> = {
     setup: ["browser", "extension-id", "manifest-dir"],
@@ -66,7 +66,7 @@ async function main() {
   };
   for (const option of Object.keys(values)) {
     if (!allowedOptions[command]?.includes(option))
-      throw new Error(`--${option} is not an option for ${command}. Run tabby help.`);
+      throw new Error(`--${option} is not an option for ${command}. Run tabherd help.`);
   }
   const selected = values.connection ? { connectionId: values.connection } : {};
   let result: unknown;
@@ -120,7 +120,7 @@ async function main() {
       });
       break;
     default:
-      throw new Error(`Unknown command: ${command}. Run tabby help.`);
+      throw new Error(`Unknown command: ${command}. Run tabherd help.`);
   }
   process.stdout.write(`${JSON.stringify(result ?? null, null, 2)}\n`);
 }

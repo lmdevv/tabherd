@@ -1,4 +1,4 @@
-import type { PageInput } from "@tabby/protocol";
+import type { PageInput } from "@tabherd/protocol";
 import type { BrowserApi } from "./engine.ts";
 
 // This function is serialized by scripting.executeScript: keep it self-contained.

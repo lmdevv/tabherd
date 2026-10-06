@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const HOST_NAME = "com.tabby.bridge";
-export const FIREFOX_ID = "tabby@local";
+export const HOST_NAME = "com.tabherd.bridge";
+export const FIREFOX_ID = "tabherd@local";
 export const PROTOCOL_VERSION = 1;
 export const MAX_MESSAGE_BYTES = 900_000;
 export const errorMessage = (error: unknown) =>

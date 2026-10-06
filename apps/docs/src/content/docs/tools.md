@@ -34,7 +34,7 @@ A batch contains calls in the same format. It stops on the first error unless `c
 
 ## Browser APIs
 
-Tabby exposes JSON-compatible browser methods; events and APIs that require callback functions aren’t proxied. Availability depends on the browser, version, and permissions. The capabilities response is the authoritative list.
+Tabherd exposes JSON-compatible browser methods; events and APIs that require callback functions aren’t proxied. Availability depends on the browser, version, and permissions. The capabilities response is the authoritative list.
 
 | API            | What you can do                                                                                  |
 | -------------- | ------------------------------------------------------------------------------------------------ |
@@ -70,14 +70,14 @@ Chromium uses its debugger API for trusted input and JavaScript evaluation. Fire
 
 ## CLI
 
-Run commands from the checkout root. JSON results go to stdout; errors produce a nonzero exit code.
+Install with `npm install -g tabherd`. JSON results go to stdout; errors produce a nonzero exit code.
 
 ```sh
-node packages/bridge/dist/index.js status
-node packages/bridge/dist/index.js capabilities
-node packages/bridge/dist/index.js call tabs.query '[{}]'
-node packages/bridge/dist/index.js page 42 '{"action":"read"}'
-node packages/bridge/dist/index.js batch '[{"method":"tabs.query","args":[{}]}]'
+tabherd status
+tabherd capabilities
+tabherd call tabs.query '[{}]'
+tabherd page 42 '{"action":"read"}'
+tabherd batch '[{"method":"tabs.query","args":[{}]}]'
 ```
 
 | Command                   | Usage                                                                         |
@@ -89,6 +89,6 @@ node packages/bridge/dist/index.js batch '[{"method":"tabs.query","args":[{}]}]'
 | `batch JSON_CALLS`        | Run a JSON array of API calls; add `--continue-on-error` to keep going.       |
 | `mcp`                     | Start the stdio MCP server.                                                   |
 | `setup --browser NAME`    | Register the native host; Chromium browsers also require `--extension-id ID`. |
-| `uninstall`               | Remove all Tabby native host registrations.                                   |
+| `uninstall`               | Remove all Tabherd native host registrations.                                 |
 
 Add `--connection ID` to `capabilities`, `call`, `page`, or `batch` to choose a profile. Run `--help` for command options.

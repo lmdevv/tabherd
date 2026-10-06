@@ -1,11 +1,11 @@
 ---
-import TabbyMark from "./TabbyMark.astro";
+import TabherdMark from "./TabherdMark.astro";
 
 const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
 ---
 
 <a href={siteTitleHref} class="site-title sl-flex">
-  <TabbyMark class="site-mark" static />
+  <TabherdMark class="site-mark" static />
   <span translate="no">{siteTitle}</span>
 </a>
 
@@ -13,7 +13,7 @@ const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
   .site-title {
     align-items: center;
     gap: 0.55rem;
-    color: var(--tabby-ink);
+    color: var(--tabherd-ink);
     text-decoration: none;
     white-space: nowrap;
     min-width: 0;

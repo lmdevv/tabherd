@@ -4,7 +4,7 @@ import { runInNewContext } from "node:vm";
 import { createEngine } from "../lib/engine.ts";
 import { createPageController, domAction } from "../lib/page.ts";
 import { createBridge, RETRY_ALARM } from "../lib/bridge.ts";
-import { PageRequest, HOST_NAME, MAX_MESSAGE_BYTES } from "@tabby/protocol";
+import { PageRequest, HOST_NAME, MAX_MESSAGE_BYTES } from "@tabherd/protocol";
 
 const page = (input) => PageRequest.parse({ tabId: 12, ...input });
 

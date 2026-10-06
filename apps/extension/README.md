@@ -1,4 +1,4 @@
-# Tabby extension
+# Tabherd extension
 
 Build with `pnpm --filter extension build`, then load `dist/chrome-mv3` through
 Chrome's **Load unpacked**. Firefox: `pnpm --filter extension build:firefox`, then

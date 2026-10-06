@@ -2,6 +2,7 @@ import { defineConfig } from "wxt";
 
 export default defineConfig({
   outDir: "dist",
+  zip: { artifactTemplate: "tabherd-{{version}}-{{browser}}.zip" },
   manifest: ({ browser, manifestVersion }) => {
     const toolbarIcon = {
       default_icon: {
@@ -22,7 +23,7 @@ export default defineConfig({
     };
 
     return {
-      name: "Tabby",
+      name: "Tabherd",
       description: "Your browser, connected to your local agent.",
       permissions: [
         "nativeMessaging",
@@ -44,7 +45,7 @@ export default defineConfig({
       ...(manifestVersion === 3 && { host_permissions: ["<all_urls>"] }),
       ...(browser === "firefox" && {
         browser_specific_settings: {
-          gecko: { id: "tabby@local", data_collection_permissions: { required: ["none"] } },
+          gecko: { id: "tabherd@local", data_collection_permissions: { required: ["none"] } },
         },
       }),
       ...(manifestVersion === 3 ? { action: toolbarIcon } : { browser_action: toolbarIcon }),

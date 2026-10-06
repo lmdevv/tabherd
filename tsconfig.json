@@ -1,3 +1,3 @@
 {
-  "extends": "@tabby/config/tsconfig.base.json"
+  "extends": "@tabherd/config/tsconfig.base.json"
 }

@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  # npm trusted publishing (OIDC); no npm token is stored in the repository.
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Trusted publishing needs npm 11.5.1 or newer.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check tag matches package version
+        run: |
+          version=$(node -p "require('./packages/bridge/package.json').version")
+          test "${GITHUB_REF_NAME}" = "v${version}" || {
+            echo "Tag ${GITHUB_REF_NAME} does not match package version v${version}"
+            exit 1
+          }
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm --filter extension zip && pnpm --filter extension zip:firefox
+      - name: Attach extension zips
+        run: gh release upload "$GITHUB_REF_NAME" apps/extension/dist/tabherd-*-chrome.zip apps/extension/dist/tabherd-*-firefox.zip --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Publish to npm
+        working-directory: packages/bridge
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "tabherd@${version}" version >/dev/null 2>&1; then
+            echo "tabherd@${version} is already on npm; skipping."
+          else
+            npm publish --access public
+          fi

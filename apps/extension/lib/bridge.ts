@@ -4,10 +4,10 @@ import {
   PROTOCOL_VERSION,
   WireRequest,
   errorMessage,
-} from "@tabby/protocol";
+} from "@tabherd/protocol";
 import { createEngine, type BrowserApi } from "./engine.ts";
 
-export const RETRY_ALARM = "tabby-native-reconnect";
+export const RETRY_ALARM = "tabherd-native-reconnect";
 
 export function createBridge(api: BrowserApi, chromium: boolean) {
   const engine = createEngine(api, chromium);
@@ -68,9 +68,9 @@ export function createBridge(api: BrowserApi, chromium: boolean) {
     if (port || connecting) return connecting;
     connecting = (async () => {
       try {
-        const stored = await api.storage.local.get("tabbyProfileId");
-        const profileId = stored.tabbyProfileId ?? crypto.randomUUID();
-        if (!stored.tabbyProfileId) await api.storage.local.set({ tabbyProfileId: profileId });
+        const stored = await api.storage.local.get("tabherdProfileId");
+        const profileId = stored.tabherdProfileId ?? crypto.randomUUID();
+        if (!stored.tabherdProfileId) await api.storage.local.set({ tabherdProfileId: profileId });
         status.connectionId = `${profileId}${api.extension?.inIncognitoContext ? ":private" : ""}`;
         status.error = "";
         const native = api.runtime.connectNative(HOST_NAME);

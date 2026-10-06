@@ -15,7 +15,7 @@ await build({
     {
       name: "protocol",
       setup(b) {
-        b.onResolve({ filter: /^@tabby\/protocol$/ }, () => ({
+        b.onResolve({ filter: /^@tabherd\/protocol$/ }, () => ({
           path: fileURLToPath(new URL("../protocol/src/index.ts", import.meta.url)),
         }));
       },

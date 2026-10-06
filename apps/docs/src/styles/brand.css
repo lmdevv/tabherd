@@ -23,15 +23,15 @@
   --sl-color-hairline: #2e2a26;
   --sl-color-hairline-light: #2e2a26;
   --sl-color-hairline-shade: #2e2a26;
-  --tabby-panel: #1f1c19;
-  --tabby-panel-raised: #262220;
-  --tabby-muted: #9c9388;
-  --tabby-ink: #f4f1ec;
-  --tabby-orange: #ff5a36;
-  --tabby-research: #9fb8a0;
-  --tabby-later: #c0a6d6;
-  --tabby-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04) inset;
-  --tabby-ease: cubic-bezier(0.22, 0.8, 0.26, 1);
+  --tabherd-panel: #1f1c19;
+  --tabherd-panel-raised: #262220;
+  --tabherd-muted: #9c9388;
+  --tabherd-ink: #f4f1ec;
+  --tabherd-orange: #ff5a36;
+  --tabherd-research: #9fb8a0;
+  --tabherd-later: #c0a6d6;
+  --tabherd-shadow: 0 30px 80px -30px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04) inset;
+  --tabherd-ease: cubic-bezier(0.22, 0.8, 0.26, 1);
 }
 
 :root[data-theme="light"] {
@@ -53,14 +53,14 @@
   --sl-color-hairline: #e9e3da;
   --sl-color-hairline-light: #e9e3da;
   --sl-color-hairline-shade: #e9e3da;
-  --tabby-panel: #f5f1ea;
-  --tabby-panel-raised: #ffffff;
-  --tabby-muted: #78716a;
-  --tabby-ink: #1f1c19;
-  --tabby-orange: #ff4a2a;
-  --tabby-research: #5f7d60;
-  --tabby-later: #8a6ca6;
-  --tabby-shadow: 0 30px 70px -32px rgb(60 40 20 / 0.35), 0 0 0 1px rgb(0 0 0 / 0.02) inset;
+  --tabherd-panel: #f5f1ea;
+  --tabherd-panel-raised: #ffffff;
+  --tabherd-muted: #78716a;
+  --tabherd-ink: #1f1c19;
+  --tabherd-orange: #ff4a2a;
+  --tabherd-research: #5f7d60;
+  --tabherd-later: #8a6ca6;
+  --tabherd-shadow: 0 30px 70px -32px rgb(60 40 20 / 0.35), 0 0 0 1px rgb(0 0 0 / 0.02) inset;
 }
 
 /* ---------------------------------------------------------------------------
@@ -77,7 +77,7 @@ site-search button[data-open-modal] {
   box-shadow: none;
   border-radius: 6px;
   font-size: 0.8rem;
-  background: var(--tabby-panel);
+  background: var(--tabherd-panel);
 }
 h1,
 h2,
@@ -118,15 +118,15 @@ h3 {
   padding-block: 0.45rem;
   border-radius: 5px;
   transition:
-    background 150ms var(--tabby-ease),
-    color 150ms var(--tabby-ease);
+    background 150ms var(--tabherd-ease),
+    color 150ms var(--tabherd-ease);
 }
 .sidebar-content a:hover {
-  background: var(--tabby-panel);
+  background: var(--tabherd-panel);
 }
 .sidebar-content a[aria-current="page"] {
-  background: var(--tabby-panel);
-  color: var(--tabby-ink);
+  background: var(--tabherd-panel);
+  color: var(--tabherd-ink);
   font-weight: 550;
 }
 .expressive-code .frame {
@@ -137,8 +137,8 @@ h3 {
   box-shadow: none;
   font-size: 0.75rem;
   transition:
-    border-color 150ms var(--tabby-ease),
-    transform 200ms var(--tabby-ease);
+    border-color 150ms var(--tabherd-ease),
+    transform 200ms var(--tabherd-ease);
 }
 .pagination-links a:hover {
   border-color: var(--sl-color-gray-3);
@@ -166,7 +166,7 @@ h3 {
 /* ---------------------------------------------------------------------------
    Hero
 --------------------------------------------------------------------------- */
-.tabby-hero {
+.tabherd-hero {
   display: grid;
   align-items: center;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
@@ -181,7 +181,7 @@ h3 {
   margin-bottom: 1.6rem;
 }
 .hero-copy h1 {
-  color: var(--tabby-ink);
+  color: var(--tabherd-ink);
   font-size: clamp(2.8rem, 5.2vw, 4.4rem);
   line-height: 1.02;
   font-weight: 500;
@@ -213,18 +213,18 @@ h3 {
   align-items: center;
   gap: 0.9rem;
   border-radius: 8px;
-  background: var(--tabby-ink);
+  background: var(--tabherd-ink);
   color: var(--sl-color-bg);
   padding: 0.72rem 1.15rem;
   font-weight: 550;
   overflow: hidden;
   transition:
-    transform 220ms var(--tabby-ease),
-    box-shadow 220ms var(--tabby-ease);
+    transform 220ms var(--tabherd-ease),
+    box-shadow 220ms var(--tabherd-ease);
 }
 .start-link span {
   display: inline-block;
-  transition: transform 220ms var(--tabby-ease);
+  transition: transform 220ms var(--tabherd-ease);
 }
 .start-link:hover {
   transform: translateY(-1px);
@@ -238,7 +238,7 @@ h3 {
 }
 .reference-link {
   position: relative;
-  color: var(--tabby-ink);
+  color: var(--tabherd-ink);
   padding-block: 0.2rem;
 }
 .reference-link::after {
@@ -250,7 +250,7 @@ h3 {
   background: currentColor;
   transform: scaleX(0);
   transform-origin: right;
-  transition: transform 260ms var(--tabby-ease);
+  transition: transform 260ms var(--tabherd-ease);
 }
 .reference-link:hover::after {
   transform: scaleX(1);
@@ -264,7 +264,7 @@ h3 {
   border: 1px solid var(--sl-color-hairline);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--tabby-shadow);
+  box-shadow: var(--tabherd-shadow);
   background: var(--sl-color-bg);
   font-size: 0.75rem;
   cursor: pointer;
@@ -273,10 +273,10 @@ h3 {
 .browser-chrome {
   display: flex;
   align-items: center;
-  background: var(--tabby-panel);
+  background: var(--tabherd-panel);
   padding: 0.7rem 0.9rem;
   border-bottom: 1px solid var(--sl-color-hairline);
-  color: var(--tabby-muted);
+  color: var(--tabherd-muted);
   font-size: 0.66rem;
 }
 .window-dots {
@@ -302,10 +302,10 @@ h3 {
   margin-bottom: 0.6rem;
   font-size: 0.8rem;
   font-weight: 550;
-  color: var(--tabby-ink);
+  color: var(--tabherd-ink);
 }
 .tab-count {
-  color: var(--tabby-muted);
+  color: var(--tabherd-muted);
   font-family: var(--sl-font-mono);
   font-size: 0.62rem;
   font-weight: 400;
@@ -322,18 +322,18 @@ h3 {
   margin: 0.15rem 0 0.3rem;
   padding: 0.25rem 0.3rem 0.3rem;
   border-radius: 7px;
-  background: var(--tabby-panel);
+  background: var(--tabherd-panel);
   box-shadow: inset 2px 0 0 var(--sl-color-gray-4);
-  transition: box-shadow 400ms var(--tabby-ease);
+  transition: box-shadow 400ms var(--tabherd-ease);
 }
 .d-group[hidden] {
   display: none;
 }
 .d-group.is-named.research {
-  box-shadow: inset 2px 0 0 var(--tabby-research);
+  box-shadow: inset 2px 0 0 var(--tabherd-research);
 }
 .d-group.is-named.later {
-  box-shadow: inset 2px 0 0 var(--tabby-later);
+  box-shadow: inset 2px 0 0 var(--tabherd-later);
 }
 .d-group-head {
   display: flex;
@@ -342,14 +342,14 @@ h3 {
   padding: 0.3rem 0.45rem 0.25rem;
   font-size: 0.66rem;
   font-weight: 550;
-  color: var(--tabby-muted);
-  transition: color 300ms var(--tabby-ease);
+  color: var(--tabherd-muted);
+  transition: color 300ms var(--tabherd-ease);
 }
 .d-group.is-named.research .d-group-head {
-  color: var(--tabby-research);
+  color: var(--tabherd-research);
 }
 .d-group.is-named.later .d-group-head {
-  color: var(--tabby-later);
+  color: var(--tabherd-later);
 }
 .d-group-head i {
   width: 6px;
@@ -383,7 +383,7 @@ h3 {
 }
 .d-tab-host {
   margin-inline-start: auto;
-  color: var(--tabby-muted);
+  color: var(--tabherd-muted);
   font-size: 0.58rem;
   font-family: var(--sl-font-mono);
 }
@@ -391,15 +391,15 @@ h3 {
   width: 9px;
   height: 10px;
   flex: none;
-  fill: var(--tabby-later);
-  stroke: var(--tabby-later);
+  fill: var(--tabherd-later);
+  stroke: var(--tabherd-later);
   stroke-width: 1.2;
   stroke-linejoin: round;
   opacity: 0;
   transform: translateY(-4px);
   transition:
-    opacity 350ms var(--tabby-ease),
-    transform 350ms var(--tabby-ease);
+    opacity 350ms var(--tabherd-ease),
+    transform 350ms var(--tabherd-ease);
 }
 .d-tab.is-saved .d-tab-mark {
   opacity: 1;
@@ -438,17 +438,17 @@ h3 {
   gap: 0.55rem;
   min-height: 1.3rem;
   font-size: 0.74rem;
-  color: var(--tabby-ink);
+  color: var(--tabherd-ink);
 }
 .prompt-mark {
-  color: var(--tabby-orange);
+  color: var(--tabherd-orange);
   font-size: 1rem;
   line-height: 1;
 }
 .prompt-caret {
   width: 1px;
   height: 0.9em;
-  background: var(--tabby-ink);
+  background: var(--tabherd-ink);
   opacity: 0;
 }
 .prompt-caret.is-typing {
@@ -462,7 +462,7 @@ h3 {
   min-height: 4.6rem;
   font-family: var(--sl-font-mono);
   font-size: 0.6rem;
-  color: var(--tabby-muted);
+  color: var(--tabherd-muted);
 }
 .agent-log li {
   display: flex;
@@ -485,8 +485,8 @@ h3 {
   opacity: 0;
   transform: translateY(4px);
   transition:
-    opacity 400ms var(--tabby-ease),
-    transform 400ms var(--tabby-ease);
+    opacity 400ms var(--tabherd-ease),
+    transform 400ms var(--tabherd-ease);
 }
 .agent-result.is-done {
   opacity: 1;
@@ -497,7 +497,7 @@ h3 {
   height: 12px;
   flex: none;
   fill: none;
-  stroke: var(--tabby-research);
+  stroke: var(--tabherd-research);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -516,20 +516,20 @@ h3 {
   margin: 0;
   padding: 1.4rem 1.5rem 1.5rem;
   border-radius: 12px;
-  background: var(--tabby-panel);
+  background: var(--tabherd-panel);
   transition:
-    transform 300ms var(--tabby-ease),
-    background 300ms var(--tabby-ease);
+    transform 300ms var(--tabherd-ease),
+    background 300ms var(--tabherd-ease);
 }
 .features article:hover {
   transform: translateY(-3px);
-  background: var(--tabby-panel-raised);
+  background: var(--tabherd-panel-raised);
 }
 .feature-icon {
   width: 1.3rem;
   height: 1.3rem;
   fill: none;
-  stroke: var(--tabby-orange);
+  stroke: var(--tabherd-orange);
   stroke-width: 1.3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -538,7 +538,7 @@ h3 {
   margin-top: 1.1rem;
   font-size: 1.05rem;
   font-weight: 550;
-  color: var(--tabby-ink);
+  color: var(--tabherd-ink);
 }
 .features p {
   margin-top: 0.5rem;
@@ -555,8 +555,8 @@ h3 {
   opacity: 0;
   transform: translateY(18px);
   transition:
-    opacity 700ms var(--tabby-ease),
-    transform 700ms var(--tabby-ease);
+    opacity 700ms var(--tabherd-ease),
+    transform 700ms var(--tabherd-ease);
 }
 [data-reveal].is-visible {
   opacity: 1;
@@ -579,7 +579,7 @@ h3 {
 }
 @media (prefers-reduced-motion: no-preference) {
   .hero-copy > * {
-    animation: rise 700ms var(--tabby-ease) both;
+    animation: rise 700ms var(--tabherd-ease) both;
   }
   .hero-copy > :nth-child(2) {
     animation-delay: 80ms;
@@ -590,8 +590,8 @@ h3 {
   .hero-copy > :nth-child(4) {
     animation-delay: 240ms;
   }
-  .tabby-hero .browser-demo {
-    animation: rise 900ms var(--tabby-ease) 200ms both;
+  .tabherd-hero .browser-demo {
+    animation: rise 900ms var(--tabherd-ease) 200ms both;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -609,7 +609,7 @@ h3 {
    Responsive
 --------------------------------------------------------------------------- */
 @media (max-width: 62rem) {
-  .tabby-hero {
+  .tabherd-hero {
     gap: 2.5rem;
   }
   .features {
@@ -620,7 +620,7 @@ h3 {
   :root[data-has-hero] .content-panel {
     padding-inline: 1.5rem;
   }
-  .tabby-hero {
+  .tabherd-hero {
     grid-template-columns: 1fr;
     padding-block: 2rem 3rem;
     gap: 2.5rem;

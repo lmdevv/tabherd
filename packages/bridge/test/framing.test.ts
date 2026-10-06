@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { endianness } from "node:os";
-import { MAX_MESSAGE_BYTES } from "@tabby/protocol";
+import { MAX_MESSAGE_BYTES } from "@tabherd/protocol";
 import { FrameDecoder, LineDecoder, encodeFrame, line } from "../src/framing";
 
 function header(size: number) {

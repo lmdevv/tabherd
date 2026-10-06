@@ -10,7 +10,7 @@ import {
   PROTOCOL_VERSION,
   errorMessage,
   WireRequest,
-} from "@tabby/protocol";
+} from "@tabherd/protocol";
 import { FrameDecoder, LineDecoder, encodeFrame, line } from "./framing";
 import { prepareState, socketAddress } from "./paths";
 
@@ -100,7 +100,7 @@ export async function nativeHost() {
   });
   const frames = new FrameDecoder();
   const helloTimeout = setTimeout(() => {
-    console.error("Tabby extension did not send hello");
+    console.error("Tabherd extension did not send hello");
     void close();
   }, 10_000);
   let incoming: Promise<void> = Promise.resolve();
