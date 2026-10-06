@@ -14,7 +14,8 @@
     "test": "pnpm --filter @tabby/bridge build && pnpm --filter @tabby/bridge test && pnpm --filter extension test",
     "build:firefox": "pnpm --filter extension build:firefox",
     "tabby": "node packages/bridge/dist/index.js",
-    "format": "oxfmt --write"
+    "format": "oxfmt --write",
+    "test:browser": "pnpm --filter @tabby/bridge build && pnpm --filter extension build && node packages/bridge/test/browser-smoke.mjs"
   },
   "dependencies": {
     "zod": "^4.5.4"

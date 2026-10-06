@@ -1,7 +1,32 @@
+import { browser } from "wxt/browser";
+import { createBridge, RETRY_ALARM } from "../lib/bridge";
+
 export default defineBackground({
-  // Firefox and Safari select their native icon variants without a background page.
-  exclude: ["firefox", "safari"],
   main() {
+    const chromium = import.meta.env.BROWSER !== "firefox";
+    const bridge = createBridge(browser, chromium);
+    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (sender.id !== browser.runtime.id) return;
+      if (message?.type === "tabby-status") {
+        sendResponse(bridge.getStatus());
+      } else if (message?.type === "tabby-reconnect") {
+        bridge.reconnect().then(sendResponse);
+        return true;
+      }
+    });
+    browser.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name === RETRY_ALARM) void bridge.connect();
+    });
+    browser.runtime.onInstalled.addListener(() => {
+      void bridge.connect();
+    });
+    browser.runtime.onStartup.addListener(() => {
+      void bridge.connect();
+    });
+    void bridge.connect();
+
+    // Firefox selects its native theme icon variants.
+    if (!chromium) return;
     const offscreenUrl = browser.runtime.getURL("/offscreen.html");
     let initializing: Promise<void> | undefined;
 

@@ -148,6 +148,10 @@ importers:
         version: 0.35.5(@types/node@26.6.4)
 
   apps/extension:
+    dependencies:
+      '@tabby/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
     devDependencies:
       typescript:
         specifier: ^5.9.3

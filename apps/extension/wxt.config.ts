@@ -1,6 +1,5 @@
 import { defineConfig } from "wxt";
 
-// See https://wxt.dev/api/config.html
 export default defineConfig({
   outDir: "dist",
   manifest: ({ browser, manifestVersion }) => {
@@ -20,26 +19,38 @@ export default defineConfig({
           dark: `icon/${size}.png`,
         })),
       }),
-      ...(browser === "safari" && {
-        icon_variants: ["light", "dark"].map((scheme) => ({
-          ...Object.fromEntries(
-            [16, 32, 48, 96, 128].map((size) => [
-              size,
-              `icon/${scheme === "dark" ? "dark/" : ""}${size}.png`,
-            ]),
-          ),
-          color_schemes: [scheme],
-        })),
-      }),
     };
 
     return {
+      name: "Tabby",
+      description: "Your browser, connected to your local agent.",
+      permissions: [
+        "nativeMessaging",
+        "tabs",
+        "tabGroups",
+        "bookmarks",
+        "history",
+        "sessions",
+        "downloads",
+        "cookies",
+        "browsingData",
+        "storage",
+        "scripting",
+        "alarms",
+        "search",
+        ...(browser === "firefox" ? [] : ["debugger", "offscreen"]),
+        ...(manifestVersion === 2 ? ["<all_urls>"] : []),
+      ],
+      ...(manifestVersion === 3 && { host_permissions: ["<all_urls>"] }),
+      ...(browser === "firefox" && {
+        browser_specific_settings: {
+          gecko: { id: "tabby@local", data_collection_permissions: { required: ["none"] } },
+        },
+      }),
       ...(manifestVersion === 3 ? { action: toolbarIcon } : { browser_action: toolbarIcon }),
-      ...(browser !== "firefox" &&
-        browser !== "safari" && {
-          minimum_chrome_version: "116",
-          permissions: ["offscreen"],
-        }),
+      ...(browser !== "firefox" && {
+        minimum_chrome_version: "116",
+      }),
     };
   },
   webExt: {
