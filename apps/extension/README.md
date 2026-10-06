@@ -8,9 +8,12 @@ the original transparency.
 Firefox selects the toolbar variant from the browser theme using `theme_icons`.
 Safari uses native `icon_variants` with `color_schemes`. Older Safari versions that
 do not support this key keep the original default icon.
-Chromium (Chrome 116 or newer) uses an offscreen document to watch
-`prefers-color-scheme` and updates the toolbar on startup and when the system theme
-changes. Custom Chromium browser themes can differ from this system preference.
+Chromium (Chrome 116 or newer) uses an offscreen document to check
+`prefers-color-scheme` every second, since Chromium can defer media-query change
+events in hidden documents. It updates the toolbar on startup and when the system
+theme changes, without needing an extension reload. Unchanged checks do not send
+messages or wake the background worker. Custom Chromium browser themes can differ
+from this system preference.
 
 Build with `pnpm --filter extension build`, `pnpm --filter extension build:firefox`,
 or `pnpm --filter extension build:safari`. Load the Chrome or Firefox directory in

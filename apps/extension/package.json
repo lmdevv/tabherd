@@ -14,6 +14,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "zip:safari": "wxt zip -b safari",
     "compile": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
