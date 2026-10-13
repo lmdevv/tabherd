@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join, dirname, resolve, sep } from "node:path";
+import { join, dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { access, mkdir, readFile, writeFile, unlink } from "node:fs/promises";
@@ -16,31 +16,38 @@ export interface Registration {
   manifestPath: string;
   registryKey?: string;
 }
+type Env = Record<string, string | undefined>;
+// Chromium browsers keep their Linux profiles under XDG_CONFIG_HOME; relative values are ignored.
+export const configHome = (home: string, env: Env = process.env) =>
+  env.XDG_CONFIG_HOME && isAbsolute(env.XDG_CONFIG_HOME)
+    ? env.XDG_CONFIG_HOME
+    : join(home, ".config");
 export function registration(
   browser: BrowserName,
   platform: string,
   home: string,
   state: string,
+  env: Env = process.env,
 ): Registration {
   const dirs = {
     chrome: {
-      linux: ".config/google-chrome/NativeMessagingHosts",
+      linux: "google-chrome/NativeMessagingHosts",
       darwin: "Google/Chrome",
       registry: "Google\\Chrome",
     },
     chromium: {
-      linux: ".config/chromium/NativeMessagingHosts",
+      linux: "chromium/NativeMessagingHosts",
       darwin: "Chromium",
       registry: "Chromium",
     },
     edge: {
-      linux: ".config/microsoft-edge/NativeMessagingHosts",
+      linux: "microsoft-edge/NativeMessagingHosts",
       darwin: "Microsoft Edge",
       registry: "Microsoft\\Edge",
     },
     // Brave reads Chrome's directories on Linux and macOS (brave-core app/brave_main_delegate.cc).
     brave: {
-      linux: ".config/google-chrome/NativeMessagingHosts",
+      linux: "google-chrome/NativeMessagingHosts",
       darwin: "Google/Chrome",
       registry: "BraveSoftware\\Brave-Browser",
     },
@@ -66,7 +73,14 @@ export function registration(
       ),
     };
   if (platform === "linux")
-    return { browser, manifestPath: join(home, dirs.linux, `${HOST_NAME}.json`) };
+    return {
+      browser,
+      manifestPath: join(
+        browser === "firefox" ? home : configHome(home, env),
+        dirs.linux,
+        `${HOST_NAME}.json`,
+      ),
+    };
   throw new Error(`Unsupported platform: ${platform}`);
 }
 // Machine-wide locations, used by package managers such as the NixOS module.
@@ -84,10 +98,11 @@ export function findManifests(
   platform: string,
   home: string,
   exists: (path: string) => boolean = existsSync,
+  env: Env = process.env,
 ): Registration[] {
   if (platform === "win32") return [];
   const candidates = [
-    ...BROWSERS.map((browser) => registration(browser, platform, home, "")),
+    ...BROWSERS.map((browser) => registration(browser, platform, home, "", env)),
     ...(SYSTEM_MANIFEST_DIRECTORIES[platform] ?? []).map(([browser, directory]) => ({
       browser,
       manifestPath: join(directory, `${HOST_NAME}.json`),
@@ -101,9 +116,10 @@ export function findManifests(
 export function detectBrowsers(
   platform: string,
   home: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Env = process.env,
   exists: (path: string) => boolean = existsSync,
 ): BrowserName[] {
+  const config = configHome(home, env);
   const local = env.LOCALAPPDATA ?? join(home, "AppData", "Local"),
     roaming = env.APPDATA ?? join(home, "AppData", "Roaming"),
     support = join(home, "Library", "Application Support");
@@ -125,10 +141,10 @@ export function detectBrowsers(
             firefox: join(support, "Firefox"),
           }
         : {
-            chrome: join(home, ".config", "google-chrome"),
-            chromium: join(home, ".config", "chromium"),
-            edge: join(home, ".config", "microsoft-edge"),
-            brave: join(home, ".config", "BraveSoftware", "Brave-Browser"),
+            chrome: join(config, "google-chrome"),
+            chromium: join(config, "chromium"),
+            edge: join(config, "microsoft-edge"),
+            brave: join(config, "BraveSoftware", "Brave-Browser"),
             firefox: join(home, ".mozilla"),
           };
   return BROWSERS.filter((browser) => exists(paths[browser]));

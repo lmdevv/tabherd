@@ -63,7 +63,7 @@ The module installs `tabherd` for every user. It registers the native host machi
 }
 ```
 
-The Home Manager module writes the registration into each browser's per-user folder. It works on Linux and macOS, with or without NixOS, and alongside Home Manager's own `programs.firefox`.
+The Home Manager module writes the registration into each browser's per-user folder, following `xdg.configHome` on Linux. It works on Linux and macOS, with or without NixOS, and alongside Home Manager's own `programs.firefox`.
 
 ## Options
 

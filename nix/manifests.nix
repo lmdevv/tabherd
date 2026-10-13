@@ -18,8 +18,17 @@ let
     type = "stdio";
   };
   support = "Library/Application Support";
+  # Linux Chromium browsers keep these under $XDG_CONFIG_HOME. Brave reads Chrome's
+  # directories on Linux and macOS (brave-core app/brave_main_delegate.cc).
+  configDirectories = {
+    chrome = "google-chrome/NativeMessagingHosts";
+    chromium = "chromium/NativeMessagingHosts";
+    brave = "google-chrome/NativeMessagingHosts";
+    edge = "microsoft-edge/NativeMessagingHosts";
+  };
 in
 {
+  inherit configDirectories;
   file = "${hostName}.json";
   chromium = builtins.toJSON (
     common
@@ -34,11 +43,11 @@ in
   etcDirectories = {
     chrome = "opt/chrome/native-messaging-hosts";
     chromium = "chromium/native-messaging-hosts";
-    # Brave reads Chrome's directories on Linux and macOS (brave-core app/brave_main_delegate.cc).
     brave = "opt/chrome/native-messaging-hosts";
     edge = "opt/edge/native-messaging-hosts";
   };
-  # Per-user directories relative to $HOME, as in packages/bridge/src/install.ts.
+  # Per-user directories relative to $HOME with the default XDG_CONFIG_HOME, as in
+  # packages/bridge/src/install.ts.
   userDirectories =
     if isDarwin then
       {
@@ -49,11 +58,8 @@ in
         firefox = "${support}/Mozilla/NativeMessagingHosts";
       }
     else
-      {
-        chrome = ".config/google-chrome/NativeMessagingHosts";
-        chromium = ".config/chromium/NativeMessagingHosts";
-        brave = ".config/google-chrome/NativeMessagingHosts";
-        edge = ".config/microsoft-edge/NativeMessagingHosts";
+      lib.mapAttrs (_: directory: ".config/${directory}") configDirectories
+      // {
         firefox = ".mozilla/native-messaging-hosts";
       };
 }

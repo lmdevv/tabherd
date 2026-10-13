@@ -5,6 +5,7 @@
 - A Nix flake: `nix run github:lmdevv/tabherd`, `overlays.default`, and NixOS and Home Manager modules (`programs.tabherd`) that register the native host declaratively.
 - `tabherd doctor` accepts native host manifests installed outside `tabherd setup`, such as by those modules or nixpkgs' Firefox wrapper, and names the manifest in each failure.
 - `tabherd setup` warns when it registers a Nix store path.
+- On Linux, `tabherd setup` and `doctor` follow `XDG_CONFIG_HOME` for Chrome, Chromium, Brave and Edge, as those browsers do.
 - Fix: on Linux and macOS, `tabherd setup --browser brave` registers in Chrome's folder, which is the one Brave reads. It used to write to Brave's own folder, so Brave connected only when Chrome was registered too.
 
 ## 0.1.0

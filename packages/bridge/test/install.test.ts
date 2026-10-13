@@ -48,7 +48,7 @@ test("native host registration targets each supported browser and platform", () 
   ];
   browsers.forEach((browser, i) => {
     assert.equal(
-      registration(browser, "linux", "/home/example", "/state").manifestPath,
+      registration(browser, "linux", "/home/example", "/state", {}).manifestPath,
       join("/home/example", linux[i]!, `${HOST_NAME}.json`),
     );
     assert.equal(
@@ -66,6 +66,22 @@ test("native host registration targets each supported browser and platform", () 
       `HKCU\\Software\\${windows[i]}\\NativeMessagingHosts\\${HOST_NAME}`,
     );
   });
+  // Chromium browsers follow an absolute XDG_CONFIG_HOME; Firefox always uses ~/.mozilla.
+  const xdg = (browser: BrowserName, value: string) =>
+    registration(browser, "linux", "/home/example", "/state", { XDG_CONFIG_HOME: value })
+      .manifestPath;
+  assert.equal(
+    xdg("chromium", "/xdg"),
+    join("/xdg", "chromium/NativeMessagingHosts", `${HOST_NAME}.json`),
+  );
+  assert.equal(
+    xdg("chromium", "relative"),
+    join("/home/example", ".config/chromium/NativeMessagingHosts", `${HOST_NAME}.json`),
+  );
+  assert.equal(
+    xdg("firefox", "/xdg"),
+    join("/home/example", ".mozilla/native-messaging-hosts", `${HOST_NAME}.json`),
+  );
   assert.throws(() => registration("chrome", "android", "/home", "/state"), /Unsupported/);
 });
 
@@ -101,6 +117,10 @@ test("setup detects installed browsers from their profile directories", () => {
   assert.deepEqual(
     detectBrowsers("linux", "/h", {}, () => false),
     [],
+  );
+  assert.deepEqual(
+    detectBrowsers("linux", "/h", { XDG_CONFIG_HOME: "/x" }, present([join("/x", "chromium")])),
+    ["chromium"],
   );
 });
 
@@ -372,7 +392,7 @@ test("manifest discovery covers per-user and machine-wide locations", () => {
     join("/usr/lib/mozilla/native-messaging-hosts", `${HOST_NAME}.json`),
   ]);
   assert.deepEqual(
-    findManifests("linux", "/home/example", (path) => present.has(path)).map((r) => [
+    findManifests("linux", "/home/example", (path) => present.has(path), {}).map((r) => [
       r.browser,
       r.manifestPath,
     ]),
@@ -398,7 +418,13 @@ test(
     const dir = await mkdtemp(join(tmpdir(), "tabherd-managed-"));
     try {
       const home = join(dir, "home");
-      const { manifestPath } = registration("chromium", process.platform, home, "");
+      const env = {
+        ...process.env,
+        HOME: home,
+        XDG_CONFIG_HOME: join(dir, "xdg"),
+        TABHERD_STATE_DIR: join(dir, "state"),
+      };
+      const { manifestPath } = registration("chromium", process.platform, home, "", env);
       const launcher = join(dir, "native-host");
       await mkdir(dirname(manifestPath), { recursive: true });
       await writeFile(launcher, "#!/bin/sh\n");
@@ -410,7 +436,6 @@ test(
         allowed_origins: [`chrome-extension://${CHROMIUM_ID}/`],
       };
       const doctor = async () => {
-        const env = { ...process.env, HOME: home, TABHERD_STATE_DIR: join(dir, "state") };
         const result = await exec(process.execPath, [entry, "doctor"], { env }).catch((e) => e);
         const report = JSON.parse(result.stdout);
         return {

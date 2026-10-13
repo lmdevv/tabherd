@@ -80,7 +80,6 @@ try {
   for (const directory of [
     join(profile, "NativeMessagingHosts"),
     join(env.XDG_CONFIG_HOME, "chromium/NativeMessagingHosts"),
-    ...(packagedManifest ? [join(env.HOME, ".config/chromium/NativeMessagingHosts")] : []),
   ]) {
     if (packagedManifest) {
       await mkdir(directory, { recursive: true });

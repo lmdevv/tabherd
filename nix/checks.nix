@@ -10,18 +10,21 @@ let
   extraId = "abcdefghijklmnopabcdefghijklmnop";
   releaseOrigin = "chrome-extension://hepgdbeccdmbongocnnamapillglcbgk/";
 
-  # Home Manager is not an input; these stand-in options are the two the module sets.
+  # Home Manager is not an input; these stand-in options are the ones the module sets.
+  files = lib.mkOption {
+    type = lib.types.attrsOf (
+      lib.types.submodule { options.text = lib.mkOption { type = lib.types.str; }; }
+    );
+    default = { };
+  };
   home = lib.evalModules {
     specialArgs = { inherit pkgs; };
     modules = [
       self.homeModules.default
       {
         options.home.packages = lib.mkOption { type = lib.types.listOf lib.types.package; };
-        options.home.file = lib.mkOption {
-          type = lib.types.attrsOf (
-            lib.types.submodule { options.text = lib.mkOption { type = lib.types.str; }; }
-          );
-        };
+        options.home.file = files;
+        options.xdg.configFile = files;
         config.programs.tabherd = {
           enable = true;
           extensionIds = [ extraId ];
@@ -38,7 +41,11 @@ let
     userDirectories
     ;
   parse = text: builtins.fromJSON (builtins.unsafeDiscardStringContext text);
-  homeFiles = lib.mapAttrs (_: file: parse file.text) home.config.home.file;
+  # With the default xdg.configHome.
+  homeFiles = lib.mapAttrs (_: file: parse file.text) (
+    home.config.home.file
+    // lib.mapAttrs' (name: lib.nameValuePair ".config/${name}") home.config.xdg.configFile
+  );
   firefoxDir =
     if pkgs.stdenv.hostPlatform.isDarwin then
       "Library/Application Support/Mozilla/NativeMessagingHosts"
