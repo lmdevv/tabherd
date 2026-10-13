@@ -2,16 +2,20 @@ import {
   API_METHODS,
   BatchRequest,
   CallRequest,
+  EventsRequest,
   PageRequest,
   errorMessage,
 } from "@tabherd/protocol";
 import { createPageController } from "./page.ts";
+import { createEventLog } from "./events.ts";
 
 // Dynamic namespaces differ by browser. The allowlist is the public boundary.
 export type BrowserApi = Record<string, any>;
 
 export function createEngine(api: BrowserApi, chromium: boolean) {
   const page = createPageController(api, chromium);
+  // Listeners must register synchronously at worker start to catch the waking event.
+  const events = createEventLog(api);
   const available = () =>
     Object.entries(API_METHODS).flatMap(([namespace, methods]) =>
       methods
@@ -72,9 +76,11 @@ export function createEngine(api: BrowserApi, chromium: boolean) {
                   "Firefox screenshots require the target tab to be visible and active.",
                 ]),
             "Large results are rejected; request narrower ranges or smaller page reads.",
+            "Events are kept in memory (last 500). A restarted extension worker returns reset: true; dropped: true means older events were evicted.",
           ],
         };
       if (method === "call") return call(input);
+      if (method === "events") return events.read(EventsRequest.parse(input));
       if (method === "page") return page(PageRequest.parse(input));
       if (method === "batch") {
         const { calls, continueOnError } = BatchRequest.parse(input);

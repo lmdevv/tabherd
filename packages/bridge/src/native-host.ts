@@ -25,7 +25,7 @@ export interface Connection extends HelloInput {
 const ClientRequest = z
   .object({
     token: z.string(),
-    method: z.enum(["ping", "call", "batch", "page", "capabilities"]),
+    method: z.enum(["ping", "call", "batch", "page", "capabilities", "events"]),
     input: z.unknown().optional(),
   })
   .strict();

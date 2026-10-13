@@ -130,15 +130,26 @@ try {
   };
   const caps = (await tool("browser_capabilities")).structuredContent.result;
   assert.ok(caps.methods.includes("tabs.group"));
+  const events = async (input) => (await tool("browser_events", input)).structuredContent.result;
+  const { cursor } = await events({});
   const a = await call("tabs.create", [{ url, active: true }]);
   const b = await call("tabs.create", [{ url: `${url}?duplicate`, active: false }]);
   const c = await call("tabs.create", [{ url: `${url}?other`, active: false }]);
-  let read;
-  for (let i = 0; i < 40; i++) {
-    read = await page(a.id, "read");
-    if (read.title === "Tabherd fixture") break;
-    await delay(50);
+  // Long-poll for the load event instead of sleeping.
+  let loaded;
+  for (let since = cursor; !loaded;) {
+    const batch = await events({ cursor: since, types: ["tab."], timeoutMs: 10000 });
+    assert.ok(batch.events.length, "timed out waiting for tab events");
+    loaded = batch.events.find(
+      (event) =>
+        event.type === "tab.updated" && event.tabId === a.id && event.changes.status === "complete",
+    );
+    since = batch.cursor;
   }
+  const created = await events({ cursor, types: ["tab.created"] });
+  assert.ok(created.events.some((event) => event.tab.id === a.id));
+  const read = await page(a.id, "read");
+  assert.equal(read.title, "Tabherd fixture");
   assert.match(read.text, /Research about local browser control/);
   assert.ok(read.elements.some((element) => element.selector === "#name"));
   assert.equal((await page(a.id, "read", { maxTextLength: 10 })).text.length, 10);
@@ -193,10 +204,10 @@ try {
     await page(a.id, "evaluate", { expression: "document.getElementById('result').textContent" }),
     "Saved Tabherd",
   );
-  const events = await page(a.id, "evaluate", { expression: "window.events" });
-  assert.ok(events.some((event) => event.type === "input" && event.trusted));
-  assert.ok(events.some((event) => event.type === "click" && event.trusted));
-  assert.ok(events.some((event) => event.type === "key" && event.key === "End" && event.trusted));
+  const dom = await page(a.id, "evaluate", { expression: "window.events" });
+  assert.ok(dom.some((event) => event.type === "input" && event.trusted));
+  assert.ok(dom.some((event) => event.type === "click" && event.trusted));
+  assert.ok(dom.some((event) => event.type === "key" && event.key === "End" && event.trusted));
   await page(a.id, "type", { selector: "#name", text: "" });
   assert.equal(
     await page(a.id, "evaluate", { expression: "document.getElementById('name').value" }),
@@ -253,7 +264,7 @@ try {
   await call("tabs.remove", [[a.id, b.id, c.id]]);
   assert.ok(!(await call("tabs.query", [{}])).some((tab) => [a.id, b.id, c.id].includes(tab.id)));
   console.log(
-    "Real Chromium extension → native host → MCP passed: page read/wait/input/click/hover/drag/upload/select/scroll/evaluate/screenshot, groups, windows, tabs, bookmarks, cookies and batch failure behavior.",
+    "Real Chromium extension → native host → MCP passed: events, page read/wait/input/click/hover/drag/upload/select/scroll/evaluate/screenshot, groups, windows, tabs, bookmarks, cookies and batch failure behavior.",
   );
 } finally {
   await client?.close();

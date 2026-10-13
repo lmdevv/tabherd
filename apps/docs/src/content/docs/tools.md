@@ -1,19 +1,20 @@
 ---
 title: Tools & commands
-description: Five MCP tools, a JSON CLI, and the browser APIs behind them.
+description: Six MCP tools, a JSON CLI, and the browser APIs behind them.
 ---
 
 Use `browser_connections` first, then `browser_capabilities` to discover what the connected browser supports. Supply `connectionId` when more than one profile is connected.
 
 ## MCP
 
-| Tool                   | Input                                             | Purpose                                      |
-| ---------------------- | ------------------------------------------------- | -------------------------------------------- |
-| `browser_connections`  | None                                              | List connected browser profiles.             |
-| `browser_capabilities` | `connectionId?`                                   | List available API methods and page actions. |
-| `browser_call`         | `method`, `args`, `connectionId?`                 | Call one browser API.                        |
-| `browser_batch`        | `calls`, `continueOnError?`, `connectionId?`      | Run up to 100 API calls in order.            |
-| `browser_page`         | `tabId`, `action`, action fields, `connectionId?` | Read or interact with a page.                |
+| Tool                   | Input                                             | Purpose                                         |
+| ---------------------- | ------------------------------------------------- | ----------------------------------------------- |
+| `browser_connections`  | None                                              | List connected browser profiles.                |
+| `browser_capabilities` | `connectionId?`                                   | List available API methods and page actions.    |
+| `browser_call`         | `method`, `args`, `connectionId?`                 | Call one browser API.                           |
+| `browser_batch`        | `calls`, `continueOnError?`, `connectionId?`      | Run up to 100 API calls in order.               |
+| `browser_page`         | `tabId`, `action`, action fields, `connectionId?` | Read or interact with a page.                   |
+| `browser_events`       | `cursor?`, `types?`, `timeoutMs?`, `limit?`       | Read or wait for tab, window, and other events. |
 
 `args` is an array of positional arguments. To list tabs:
 
@@ -31,6 +32,24 @@ To save a bookmark:
 ```
 
 A batch contains calls in the same format. It stops on the first error unless `continueOnError` is true. It is not a transaction: completed calls remain applied. After a timeout, inspect the browser before retrying a mutation.
+
+## Events
+
+`browser_events` returns recent browser events and a `cursor`. Pass the cursor back to get only newer events, and set `timeoutMs` (up to 45 seconds) to wait for the next one instead of polling. `types` filters by prefix:
+
+```json
+{ "cursor": "3f2a9c1d:41", "types": ["tab.updated"], "timeoutMs": 15000 }
+```
+
+| Prefix      | Events                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `tab.`      | `created`, `updated` (status, URL, title, pin, group), `removed`, `activated`, `moved`, `attached` |
+| `window.`   | `created`, `removed`, `focused`                                                                    |
+| `group.`    | `created`, `updated`, `removed`                                                                    |
+| `bookmark.` | `created`, `changed`, `moved`, `removed`                                                           |
+| `download.` | `created`, `changed`                                                                               |
+
+The extension keeps the last 500 events in memory. `dropped: true` means older events were evicted, and `reset: true` means the extension restarted; re-read state with `browser_call` in either case.
 
 ## Browser APIs
 
@@ -84,6 +103,7 @@ tabherd capabilities
 tabherd call tabs.query '[{}]'
 tabherd page 42 '{"action":"read"}'
 tabherd batch '[{"method":"tabs.query","args":[{}]}]'
+tabherd events --follow --type tab.
 ```
 
 | Command                   | Usage                                                                            |
@@ -93,9 +113,10 @@ tabherd batch '[{"method":"tabs.query","args":[{}]}]'
 | `call METHOD JSON_ARGS`   | Call a browser API with a JSON argument array.                                   |
 | `page TAB_ID JSON_OBJECT` | Run a page action.                                                               |
 | `batch JSON_CALLS`        | Run a JSON array of API calls; add `--continue-on-error` to keep going.          |
+| `events`                  | Print events; add `--cursor`, `--type`, `--wait MS`, `--limit`, or `--follow`.   |
 | `mcp`                     | Start the stdio MCP server.                                                      |
 | `setup`                   | Register the native host for installed browsers; add `--browser NAME` to choose. |
 | `doctor`                  | Check the installation and connection, with a fix for each problem.              |
 | `uninstall`               | Remove all Tabherd native host registrations.                                    |
 
-Add `--connection ID` to `capabilities`, `call`, `page`, or `batch` to choose a profile. Run `--help` for command options.
+`events --follow` streams new events as JSON lines until interrupted. Add `--connection ID` to `capabilities`, `call`, `page`, `batch`, or `events` to choose a profile. Run `--help` for command options.

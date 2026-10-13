@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   CallRequest,
   BatchRequest,
+  EventsRequest,
   PageRequest,
   Hello,
   errorMessage,
@@ -133,7 +134,9 @@ export async function dispatch(method: BridgeMethod, raw: unknown = {}): Promise
         ? BatchRequest.parse(raw)
         : method === "page"
           ? PageRequest.parse(raw)
-          : z.object({ connectionId: z.string().optional() }).strict().parse(raw);
+          : method === "events"
+            ? EventsRequest.parse(raw)
+            : z.object({ connectionId: z.string().optional() }).strict().parse(raw);
   // The browser reads upload files from disk, so give it absolute, existing paths.
   const files = method === "page" ? (input as PageInput).files : undefined;
   if (files)
