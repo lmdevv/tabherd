@@ -11,6 +11,12 @@ Tabherd runs on your computer and connects to your existing browser profile. You
 npm install -g tabherd
 ```
 
+If that fails because npm’s global folder is read-only (Nix, or a system-wide Node.js), install into your home folder and put `~/.local/bin` on your `PATH`:
+
+```sh
+npm install -g --prefix ~/.local tabherd
+```
+
 Download the extension zip for your browser from the [latest release](https://github.com/lmdevv/tabherd/releases/latest) and unzip it.
 
 ## 2. Load the extension
