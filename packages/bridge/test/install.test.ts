@@ -35,16 +35,10 @@ test("native host registration targets each supported browser and platform", () 
     ".config/google-chrome/NativeMessagingHosts",
     ".config/chromium/NativeMessagingHosts",
     ".config/microsoft-edge/NativeMessagingHosts",
-    ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts",
+    ".config/google-chrome/NativeMessagingHosts",
     ".mozilla/native-messaging-hosts",
   ];
-  const mac = [
-    "Google/Chrome",
-    "Chromium",
-    "Microsoft Edge",
-    "BraveSoftware/Brave-Browser",
-    "Mozilla",
-  ];
+  const mac = ["Google/Chrome", "Chromium", "Microsoft Edge", "Google/Chrome", "Mozilla"];
   const windows = [
     "Google\\Chrome",
     "Chromium",
@@ -430,6 +424,9 @@ test(
       const managed = await doctor();
       assert.equal(managed.record.ok, true);
       assert.equal(managed.manifest.ok, true);
+      // A directory passes an execute-permission check but cannot be launched.
+      await writeFile(manifestPath, JSON.stringify({ ...manifest, path: dir }));
+      assert.match((await doctor()).manifest.detail, /not an executable file/);
       await writeFile(
         manifestPath,
         JSON.stringify({ ...manifest, path: join(dir, "gone"), allowed_origins: [] }),

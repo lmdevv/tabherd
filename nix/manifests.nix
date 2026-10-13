@@ -34,7 +34,8 @@ in
   etcDirectories = {
     chrome = "opt/chrome/native-messaging-hosts";
     chromium = "chromium/native-messaging-hosts";
-    brave = "opt/brave/native-messaging-hosts";
+    # Brave reads Chrome's directories on Linux and macOS (brave-core app/brave_main_delegate.cc).
+    brave = "opt/chrome/native-messaging-hosts";
     edge = "opt/edge/native-messaging-hosts";
   };
   # Per-user directories relative to $HOME, as in packages/bridge/src/install.ts.
@@ -43,7 +44,7 @@ in
       {
         chrome = "${support}/Google/Chrome/NativeMessagingHosts";
         chromium = "${support}/Chromium/NativeMessagingHosts";
-        brave = "${support}/BraveSoftware/Brave-Browser/NativeMessagingHosts";
+        brave = "${support}/Google/Chrome/NativeMessagingHosts";
         edge = "${support}/Microsoft Edge/NativeMessagingHosts";
         firefox = "${support}/Mozilla/NativeMessagingHosts";
       }
@@ -51,7 +52,7 @@ in
       {
         chrome = ".config/google-chrome/NativeMessagingHosts";
         chromium = ".config/chromium/NativeMessagingHosts";
-        brave = ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts";
+        brave = ".config/google-chrome/NativeMessagingHosts";
         edge = ".config/microsoft-edge/NativeMessagingHosts";
         firefox = ".mozilla/native-messaging-hosts";
       };

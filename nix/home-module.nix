@@ -23,11 +23,12 @@ in
 
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
+    # Brave shares Chrome's directory, so register each directory once.
     home.file = lib.listToAttrs (
       map (browser: {
         name = "${manifests.userDirectories.${browser}}/${manifests.file}";
         value.text = if browser == "firefox" then manifests.firefox else manifests.chromium;
-      }) cfg.browsers
+      }) (lib.unique (map (browser: if browser == "brave" then "chrome" else browser) cfg.browsers))
     );
   };
 }

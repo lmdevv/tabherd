@@ -1,4 +1,4 @@
-import { access, constants, readFile } from "node:fs/promises";
+import { access, constants, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute } from "node:path";
 import { execFile } from "node:child_process";
@@ -44,6 +44,10 @@ async function checkManifest(
     const runnable =
       typeof manifest.path === "string" &&
       isAbsolute(manifest.path) &&
+      (await stat(manifest.path).then(
+        (info) => info.isFile(),
+        () => false,
+      )) &&
       (await access(manifest.path, constants.X_OK).then(
         () => true,
         () => false,

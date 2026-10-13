@@ -23,13 +23,15 @@ in
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [ cfg.package ];
+    # Brave shares Chrome's directory, so register each directory once.
     environment.etc = lib.listToAttrs (
-      map (browser: {
-        name = "${manifests.etcDirectories.${browser}}/${manifests.file}";
+      map (directory: {
+        name = "${directory}/${manifests.file}";
         value.text = manifests.chromium;
-      }) chromiumBrowsers
+      }) (lib.unique (map (browser: manifests.etcDirectories.${browser}) chromiumBrowsers))
     );
-    # Firefox reads no machine-wide directory on NixOS; its wrapper links these for each user.
+    # NixOS has no machine-wide Firefox directory; the Firefox wrapper points MOZ_SYSTEM_DIR
+    # at the hosts of these packages.
     programs.firefox.nativeMessagingHosts.packages = lib.mkIf (lib.elem "firefox" cfg.browsers) [
       cfg.package
     ];

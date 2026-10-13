@@ -84,7 +84,8 @@ in
 
   home-module =
     assert lib.elem tabherd home.config.home.packages;
-    assert lib.length (lib.attrNames homeChromes) == 4;
+    # Chrome, Chromium and Edge; Brave reads Chrome's file.
+    assert lib.length (lib.attrNames homeChromes) == 3;
     assert lib.all (
       manifest:
       manifest.allowed_origins == [
@@ -109,7 +110,6 @@ in
             programs.tabherd = {
               enable = true;
               browsers = [
-                "chrome"
                 "brave"
                 "firefox"
               ];
@@ -120,6 +120,7 @@ in
       };
       inherit (nixos.config.environment) etc;
       manifest = path: parse etc."${path}/com.tabherd.bridge.json".text;
+      # Brave alone registers in Chrome's directory, which is the one it reads.
       chrome = manifest "opt/chrome/native-messaging-hosts";
     in
     assert lib.elem tabherd nixos.config.environment.systemPackages;
@@ -129,7 +130,6 @@ in
         "chrome-extension://${extraId}/"
       ];
     assert chrome.path == "${tabherd}/libexec/tabherd/native-host";
-    assert (manifest "opt/brave/native-messaging-hosts") == chrome;
     assert !(etc ? "chromium/native-messaging-hosts/com.tabherd.bridge.json");
     assert lib.elem tabherd nixos.config.programs.firefox.nativeMessagingHosts.packages;
     pkgs.emptyFile;

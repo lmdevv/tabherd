@@ -38,9 +38,10 @@ export function registration(
       darwin: "Microsoft Edge",
       registry: "Microsoft\\Edge",
     },
+    // Brave reads Chrome's directories on Linux and macOS (brave-core app/brave_main_delegate.cc).
     brave: {
-      linux: ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts",
-      darwin: "BraveSoftware/Brave-Browser",
+      linux: ".config/google-chrome/NativeMessagingHosts",
+      darwin: "Google/Chrome",
       registry: "BraveSoftware\\Brave-Browser",
     },
     firefox: { linux: ".mozilla/native-messaging-hosts", darwin: "Mozilla", registry: "Mozilla" },
@@ -74,7 +75,6 @@ export const SYSTEM_MANIFEST_DIRECTORIES: Partial<Record<string, [BrowserName, s
     ["chrome", "/etc/opt/chrome/native-messaging-hosts"],
     ["chromium", "/etc/chromium/native-messaging-hosts"],
     ["edge", "/etc/opt/edge/native-messaging-hosts"],
-    ["brave", "/etc/opt/brave/native-messaging-hosts"],
     ["firefox", "/usr/lib/mozilla/native-messaging-hosts"],
     ["firefox", "/usr/lib64/mozilla/native-messaging-hosts"],
   ],
@@ -86,13 +86,16 @@ export function findManifests(
   exists: (path: string) => boolean = existsSync,
 ): Registration[] {
   if (platform === "win32") return [];
-  return [
+  const candidates = [
     ...BROWSERS.map((browser) => registration(browser, platform, home, "")),
     ...(SYSTEM_MANIFEST_DIRECTORIES[platform] ?? []).map(([browser, directory]) => ({
       browser,
       manifestPath: join(directory, `${HOST_NAME}.json`),
     })),
-  ].filter((reg) => exists(reg.manifestPath));
+  ];
+  // Brave shares Chrome's file; report each file once.
+  const unique = [...new Map(candidates.map((reg) => [reg.manifestPath, reg])).values()];
+  return unique.filter((reg) => exists(reg.manifestPath));
 }
 // Profile directories show which browsers this user has run.
 export function detectBrowsers(

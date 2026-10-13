@@ -43,7 +43,7 @@ Add the flake to your inputs and import the module:
 }
 ```
 
-The module installs `tabherd` for every user. It registers the native host machine-wide for Chrome, Chromium, Brave and Edge in `/etc`. For Firefox it uses `programs.firefox.nativeMessagingHosts.packages`, which covers a Firefox installed with `programs.firefox.enable`.
+The module installs `tabherd` for every user. It registers the native host machine-wide for Chrome, Chromium, Brave and Edge in `/etc`. Brave reads Chrome's registration. For Firefox it uses `programs.firefox.nativeMessagingHosts.packages`, which covers a Firefox installed with `programs.firefox.enable`.
 
 ## Home Manager
 
