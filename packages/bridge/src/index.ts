@@ -17,6 +17,7 @@ const help = `Tabherd — your browser, connected to your agent.
   tabherd call METHOD '[ARG,...]' [--connection ID]
   tabherd batch '[{"method":"tabs.query","args":[{}]}]' [--continue-on-error]
   tabherd page TAB_ID '{"action":"read"}' [--connection ID]
+  tabherd events [--cursor C] [--type PREFIX]... [--wait MS] [--limit N] [--follow]
   tabherd mcp
   tabherd uninstall
   tabherd --version
@@ -48,6 +49,11 @@ async function main() {
       "manifest-dir": { type: "string" },
       connection: { type: "string" },
       "continue-on-error": { type: "boolean" },
+      cursor: { type: "string" },
+      type: { type: "string", multiple: true },
+      wait: { type: "string" },
+      limit: { type: "string" },
+      follow: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
@@ -68,6 +74,7 @@ async function main() {
     call: ["connection"],
     batch: ["connection", "continue-on-error"],
     page: ["connection"],
+    events: ["connection", "cursor", "type", "wait", "limit", "follow"],
   };
   for (const option of Object.keys(values)) {
     if (!allowedOptions[command]?.includes(option))
@@ -139,6 +146,44 @@ async function main() {
         tabId: Number(positionals[0]),
       });
       break;
+    case "events": {
+      expect(0);
+      const number = (value: string | undefined, name: string) => {
+        if (value === undefined) return undefined;
+        if (!/^\d+$/.test(value)) throw new Error(`--${name} must be a whole number`);
+        return Number(value);
+      };
+      const query = {
+        ...selected,
+        ...(values.cursor ? { cursor: values.cursor } : {}),
+        ...(values.type ? { types: values.type } : {}),
+        timeoutMs: number(values.wait, "wait") ?? (values.follow ? 30_000 : 0),
+        ...(values.limit ? { limit: number(values.limit, "limit") } : {}),
+      };
+      if (!values.follow) {
+        result = await dispatch("events", query);
+        break;
+      }
+      // Stream new events, one JSON object per line, until interrupted.
+      if (!query.cursor)
+        query.cursor = (
+          (await dispatch("events", { ...selected, limit: 1 })) as { cursor: string }
+        ).cursor;
+      for (;;) {
+        const batch = (await dispatch("events", query)) as {
+          cursor: string;
+          events: unknown[];
+          reset?: boolean;
+          dropped?: boolean;
+        };
+        if (batch.reset || batch.dropped)
+          process.stdout.write(
+            `${JSON.stringify({ type: "tabherd.missed", ...batch, events: undefined })}\n`,
+          );
+        for (const event of batch.events) process.stdout.write(`${JSON.stringify(event)}\n`);
+        query.cursor = batch.cursor;
+      }
+    }
     default:
       throw new Error(`Unknown command: ${command}. Run tabherd help.`);
   }

@@ -1,6 +1,6 @@
 # Tabherd
 
-Your browser, connected to your agent. A thin extension and local native bridge expose browser APIs through five MCP tools and a JSON CLI. Organize tabs, move windows, save bookmarks, read pages, and interact with the browser you already use.
+Your browser, connected to your agent. A thin extension and local native bridge expose browser APIs through six MCP tools and a JSON CLI. Organize tabs, move windows, save bookmarks, read pages, and interact with the browser you already use.
 
 ## Quick start
 

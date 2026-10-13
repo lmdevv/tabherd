@@ -69,6 +69,19 @@ export const PageRequest = z
   })
   .strict();
 export type PageInput = z.infer<typeof PageRequest>;
+export const EventsRequest = z
+  .object({
+    connectionId,
+    // Omit for the most recent events; pass the returned cursor to get only newer ones.
+    cursor: z.string().min(1).max(100).optional(),
+    // Prefix filters such as "tab." or "tab.updated".
+    types: z.array(z.string().min(1).max(50)).max(20).optional(),
+    // Long-poll: wait up to timeoutMs for a matching event when none are pending.
+    timeoutMs: z.number().int().min(0).max(MAX_WAIT_MS).default(0),
+    limit: z.number().int().min(1).max(500).default(100),
+  })
+  .strict();
+export type EventsInput = z.infer<typeof EventsRequest>;
 export const Hello = z
   .object({
     type: z.literal("hello"),
@@ -84,7 +97,7 @@ export const WireRequest = z
   .object({
     type: z.literal("request"),
     id: z.string().min(1),
-    method: z.enum(["call", "batch", "page", "capabilities"]),
+    method: z.enum(["call", "batch", "page", "capabilities", "events"]),
     input: z.unknown().optional(),
   })
   .strict();

@@ -1,7 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { CallRequest, BatchRequest, PageRequest, errorMessage } from "@tabherd/protocol";
+import {
+  CallRequest,
+  BatchRequest,
+  EventsRequest,
+  PageRequest,
+  errorMessage,
+} from "@tabherd/protocol";
 import { connections, dispatch } from "./client";
 import packageJson from "../package.json" with { type: "json" };
 
@@ -61,6 +67,16 @@ export async function mcp() {
       inputSchema: BatchRequest,
     },
     (input) => wrap(() => dispatch("batch", input)),
+  );
+  server.registerTool(
+    "browser_events",
+    {
+      description:
+        "Read browser events: tab.created/updated/removed/activated/moved/attached, window.created/removed/focused, group.*, bookmark.*, download.*. Call without cursor for recent events and a cursor; pass the cursor back to get only newer events. Set timeoutMs (max 45000) to wait for the next matching event instead of polling, e.g. types:['tab.updated'] after starting a navigation or download. reset or dropped mean some events were missed; re-read state with browser_call.",
+      inputSchema: EventsRequest,
+      annotations: { readOnlyHint: true },
+    },
+    (input) => wrap(() => dispatch("events", input)),
   );
   server.registerTool(
     "browser_page",

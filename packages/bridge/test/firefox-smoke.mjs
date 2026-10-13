@@ -97,7 +97,12 @@ try {
   assert.equal(caps.browser, "firefox");
   assert.ok(caps.pageActions.includes("evaluate"));
   assert.ok(!caps.pageActions.includes("upload"));
+  const { cursor } = (await tool("browser_events")).structuredContent.result;
   const tab = await call("tabs.create", [{ url, active: true }]);
+  const created = (
+    await tool("browser_events", { cursor, types: ["tab.created"], timeoutMs: 5000 })
+  ).structuredContent.result;
+  assert.equal(created.events[0].tab.id, tab.id);
   await page(tab.id, "wait", { timeoutMs: 10000 });
   await page(tab.id, "wait", { selector: "#late", timeoutMs: 5000 });
   const read = await page(tab.id, "read");
@@ -153,7 +158,7 @@ try {
   await call("bookmarks.removeTree", [folder.id]);
   await call("tabs.remove", [[tab.id, csp.id]]);
   console.log(
-    "Real Firefox extension → native host → MCP passed: doctor, capabilities, wait/read/type/click/hover/evaluate/screenshot, tabs and bookmarks.",
+    "Real Firefox extension → native host → MCP passed: doctor, capabilities, events, wait/read/type/click/hover/evaluate/screenshot, tabs and bookmarks.",
   );
 } finally {
   await client?.close();

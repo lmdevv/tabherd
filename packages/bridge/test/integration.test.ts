@@ -327,6 +327,7 @@ test(
         "browser_call",
         "browser_capabilities",
         "browser_connections",
+        "browser_events",
         "browser_page",
       ]);
       assert.ok(listed.result.tools.every((t: any) => t.inputSchema.type === "object"));
@@ -360,6 +361,7 @@ test(
           "page",
         ],
         ["browser_capabilities", { connectionId: "profile-a" }, "capabilities"],
+        ["browser_events", { connectionId: "profile-a", types: ["tab."] }, "events"],
       ] as const) {
         const result = await client.call("tools/call", { name, arguments: args });
         assert.equal(result.result.isError, undefined, JSON.stringify(result));
