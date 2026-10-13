@@ -29,7 +29,9 @@ export interface Activity {
 const ACTIVITY_LIMIT = 50;
 
 export function createEngine(api: BrowserApi, chromium: boolean) {
-  const page = createPageController(api, chromium);
+  const page = createPageController(api, chromium, (input) => {
+    if (!allowsPageAction(access, input.action)) throw blockedError(access, `page ${input.action}`);
+  });
   // Listeners must register synchronously at worker start to catch the waking event.
   const events = createEventLog(api);
   let access: AccessMode = "full";
@@ -147,11 +149,8 @@ export function createEngine(api: BrowserApi, chromium: boolean) {
       if (method === "events") return events.read(EventsRequest.parse(input));
       if (method === "page") {
         const parsed = PageRequest.parse(input);
-        return tracked(describePage(parsed), async () => {
-          if (!allowsPageAction(access, parsed.action))
-            throw blockedError(access, `page ${parsed.action}`);
-          return page(parsed);
-        });
+        // The controller checks access as the action starts, after any queueing.
+        return tracked(describePage(parsed), () => page(parsed));
       }
       if (method === "batch") {
         const { calls, continueOnError } = BatchRequest.parse(input);

@@ -133,3 +133,30 @@ test("an unset or invalid stored mode means full access", async () => {
   }
   assert.equal((await createEngine({}, false).dispatch("capabilities")).access, "full");
 });
+
+test("queued page actions recheck access when they start", async () => {
+  let release;
+  const evaluated = [];
+  const api = {
+    ...storageApi({}),
+    debugger: {
+      async attach() {},
+      async detach() {},
+      async sendCommand(_target, _method, params) {
+        evaluated.push(params.expression);
+        if (params.expression === "first") await new Promise((resolve) => (release = resolve));
+        return { result: { value: params.expression } };
+      },
+    },
+  };
+  const engine = createEngine(api, true);
+  await engine.dispatch("capabilities");
+  const first = engine.dispatch("page", { tabId: 3, action: "evaluate", expression: "first" });
+  const second = engine.dispatch("page", { tabId: 3, action: "evaluate", expression: "second" });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await api.storage.local.set({ [ACCESS_STORAGE_KEY]: "standard" });
+  release();
+  assert.equal(await first, "first", "an action already running finishes");
+  await assert.rejects(second, /page evaluate is blocked/);
+  assert.deepEqual(evaluated, ["first"]);
+});
