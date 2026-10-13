@@ -29,6 +29,14 @@ let
       }
     ];
   };
+  inherit
+    (import ./manifests.nix {
+      inherit lib;
+      launcher = "";
+      isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+    })
+    userDirectories
+    ;
   parse = text: builtins.fromJSON (builtins.unsafeDiscardStringContext text);
   homeFiles = lib.mapAttrs (_: file: parse file.text) home.config.home.file;
   firefoxDir =
@@ -66,8 +74,8 @@ in
         check firefox ${tabherd}/lib/mozilla/native-messaging-hosts/com.tabherd.bridge.json
         test -x ${tabherd}/libexec/tabherd/native-host
 
-        mkdir -p $HOME/.config/chromium/NativeMessagingHosts
-        cp ${tabherd}/etc/chromium/native-messaging-hosts/com.tabherd.bridge.json $HOME/.config/chromium/NativeMessagingHosts/
+        mkdir -p "$HOME/${userDirectories.chromium}"
+        cp ${tabherd}/etc/chromium/native-messaging-hosts/com.tabherd.bridge.json "$HOME/${userDirectories.chromium}/"
         tabherd doctor > report.json || true
         # Everything but the live browser connection passes.
         jq -e '[.checks[] | select(.ok | not) | .name] == ["browser connection"]' report.json

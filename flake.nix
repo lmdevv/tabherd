@@ -13,8 +13,12 @@
         "aarch64-darwin"
       ];
       forAllSystems = f: lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
-      # Modules default to the package built with this flake's pinned nixpkgs.
-      defaultPackage = pkgs: self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      # Modules default to the package built with this flake's pinned nixpkgs, or with the
+      # user's nixpkgs on a system this flake doesn't list (such as x86_64-darwin).
+      defaultPackage =
+        pkgs:
+        self.packages.${pkgs.stdenv.hostPlatform.system}.default
+          or (pkgs.callPackage ./nix/package.nix { });
     in
     {
       packages = forAllSystems (pkgs: rec {

@@ -371,10 +371,11 @@ test(
 );
 
 test("manifest discovery covers per-user and machine-wide locations", () => {
+  // Paths are built with the host's separator, so build the fixtures the same way.
   const present = new Set([
-    `/home/example/.config/chromium/NativeMessagingHosts/${HOST_NAME}.json`,
-    `/etc/opt/chrome/native-messaging-hosts/${HOST_NAME}.json`,
-    `/usr/lib/mozilla/native-messaging-hosts/${HOST_NAME}.json`,
+    join("/home/example", ".config/chromium/NativeMessagingHosts", `${HOST_NAME}.json`),
+    join("/etc/opt/chrome/native-messaging-hosts", `${HOST_NAME}.json`),
+    join("/usr/lib/mozilla/native-messaging-hosts", `${HOST_NAME}.json`),
   ]);
   assert.deepEqual(
     findManifests("linux", "/home/example", (path) => present.has(path)).map((r) => [
@@ -390,9 +391,10 @@ test("manifest discovery covers per-user and machine-wide locations", () => {
 });
 
 test("setup warns about registrations that a cache or garbage collection removes", () => {
-  assert.match(setupWarning("/home/u/.npm/_npx/abc/node_modules/tabherd/dist/index.js")!, /npx/);
+  const npx = join("/home/u/.npm/_npx/abc/node_modules/tabherd/dist/index.js");
+  assert.match(setupWarning(npx)!, /npx/);
   assert.match(setupWarning("/nix/store/abc-tabherd-0.1.0/lib/tabherd/dist/index.js")!, /Nix/);
-  assert.equal(setupWarning("/usr/lib/node_modules/tabherd/dist/index.js"), undefined);
+  assert.equal(setupWarning(join("/usr/lib/node_modules/tabherd/dist/index.js")), undefined);
 });
 
 test(
@@ -402,7 +404,7 @@ test(
     const dir = await mkdtemp(join(tmpdir(), "tabherd-managed-"));
     try {
       const home = join(dir, "home");
-      const manifestPath = join(home, ".config/chromium/NativeMessagingHosts", `${HOST_NAME}.json`);
+      const { manifestPath } = registration("chromium", process.platform, home, "");
       const launcher = join(dir, "native-host");
       await mkdir(dirname(manifestPath), { recursive: true });
       await writeFile(launcher, "#!/bin/sh\n");
