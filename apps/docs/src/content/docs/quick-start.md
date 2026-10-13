@@ -63,7 +63,7 @@ Add this stdio server to your agent’s MCP configuration:
 }
 ```
 
-Restart your agent and ask: **“List my tabs, then suggest how to organize them.”** Use [the CLI](/tools/#cli) directly if your agent doesn’t support MCP. An optional [agent skill](https://github.com/lmdevv/tabherd/blob/main/skills/tabherd/SKILL.md) teaches agents common workflows.
+Restart your agent and ask: **“List my tabs, then suggest how to organize them.”** Use [the CLI](../tools/#cli) directly if your agent doesn’t support MCP. An optional [agent skill](https://github.com/lmdevv/tabherd/blob/main/skills/tabherd/SKILL.md) teaches agents common workflows.
 
 To build from source instead, see the [repository README](https://github.com/lmdevv/tabherd#from-source).
 
