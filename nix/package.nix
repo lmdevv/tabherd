@@ -48,7 +48,12 @@ stdenvNoCC.mkDerivation (finalAttrs: {
       ;
     inherit pnpm;
     fetcherVersion = 4;
-    hash = "sha256-GBpR3LPmGuj4Zlk9w+lz5mXoCNx3XwhGNSDCi3Ni6yY=";
+    # pnpm's store differs between Linux and macOS for this lockfile, so each has its own hash.
+    hash =
+      if stdenvNoCC.hostPlatform.isDarwin then
+        "sha256-t4myVmZgLMDTTuc+ROs2OmNE9bJckEL2v5ELG6NTo/k="
+      else
+        "sha256-GBpR3LPmGuj4Zlk9w+lz5mXoCNx3XwhGNSDCi3Ni6yY=";
   };
 
   # Attributes, not files, so Nix substitutes the $out placeholder in the launcher path.
