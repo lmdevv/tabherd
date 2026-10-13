@@ -245,6 +245,28 @@ test(
         `chrome-extension://${"b".repeat(32)}/`,
       ]);
       await assert.rejects(cli(["setup", "--manifest-dir", chromeDir]), /requires --browser/);
+      // Doctor checks every stored ID, and setup ignores corrupt stored IDs.
+      const record = join(state, "installation.json");
+      const saved = JSON.parse(await readFile(record, "utf8"));
+      await writeFile(
+        chromePath,
+        JSON.stringify({
+          ...JSON.parse(await readFile(chromePath, "utf8")),
+          allowed_origins: [`chrome-extension://${CHROMIUM_ID}/`],
+        }),
+      );
+      const missing = JSON.parse((await cli(["doctor"]).catch((error) => error)).stdout);
+      assert.match(
+        missing.checks.find((c: any) => c.name === "chrome native host manifest").detail,
+        new RegExp(`lacks extension ID ${"a".repeat(32)}`),
+      );
+      await writeFile(record, JSON.stringify({ ...saved, extensionIds: "corrupt" }));
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
+      assert.deepEqual(JSON.parse(await readFile(chromePath, "utf8")).allowed_origins, [
+        `chrome-extension://${CHROMIUM_ID}/`,
+      ]);
+      await writeFile(record, JSON.stringify(saved));
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
       const healthy = JSON.parse((await cli(["doctor"]).catch((error) => error)).stdout);
       assert.equal(healthy.ok, false, "no browser is connected");
       assert.deepEqual(

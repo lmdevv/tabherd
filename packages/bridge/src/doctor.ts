@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { CHROMIUM_ID, FIREFOX_ID, HOST_NAME, errorMessage } from "@tabherd/protocol";
 import { inspectConnections } from "./client";
-import { readInstallation, type Registration } from "./install";
+import { readInstallation, storedExtensionIds, type Registration } from "./install";
 import { stateDirectory } from "./paths";
 
 const exec = promisify(execFile);
@@ -16,7 +16,11 @@ export interface Check {
 }
 const SETUP = "Run tabherd setup, then reload the extension.";
 
-async function checkManifest(reg: Registration, launcher: string): Promise<Check> {
+async function checkManifest(
+  reg: Registration,
+  launcher: string,
+  extensionIds: string[],
+): Promise<Check> {
   const name = `${reg.browser} native host manifest`;
   let manifest: any;
   try {
@@ -30,8 +34,10 @@ async function checkManifest(reg: Registration, launcher: string): Promise<Check
   if (reg.browser === "firefox") {
     if (!manifest.allowed_extensions?.includes(FIREFOX_ID))
       problems.push(`allowed_extensions lacks ${FIREFOX_ID}`);
-  } else if (!manifest.allowed_origins?.includes(`chrome-extension://${CHROMIUM_ID}/`))
-    problems.push(`allowed_origins lacks the Tabherd extension ID ${CHROMIUM_ID}`);
+  } else
+    for (const id of extensionIds)
+      if (!manifest.allowed_origins?.includes(`chrome-extension://${id}/`))
+        problems.push(`allowed_origins lacks extension ID ${id}`);
   if (reg.registryKey) {
     try {
       const { stdout } = await exec("reg.exe", ["query", reg.registryKey, "/ve"]);
@@ -111,7 +117,12 @@ export async function doctor() {
     if (!installation.registrations.length)
       checks.push({ name: "browser registrations", ok: false, detail: "None", fix: SETUP });
     for (const reg of installation.registrations)
-      checks.push(await checkManifest(reg, installation.launcher));
+      checks.push(
+        await checkManifest(reg, installation.launcher, [
+          CHROMIUM_ID,
+          ...storedExtensionIds(installation),
+        ]),
+      );
   }
   const { live, stale } = await inspectConnections();
   checks.push({

@@ -124,7 +124,7 @@ export interface InstallOptions {
 }
 export async function install(options: InstallOptions) {
   if (!options.browsers.length) throw new Error("Select a browser");
-  const invalid = (options.extensionIds ?? []).find((id) => !/^[a-p]{32}$/.test(id));
+  const invalid = (options.extensionIds ?? []).find((id) => !isExtensionId(id));
   if (invalid !== undefined)
     throw new Error(
       `Invalid --extension-id ${JSON.stringify(invalid)}: use the 32-letter ID from chrome://extensions`,
@@ -133,7 +133,7 @@ export async function install(options: InstallOptions) {
   const extensionIds = [
     ...new Set([
       CHROMIUM_ID,
-      ...((await readInstallation())?.extensionIds ?? []),
+      ...storedExtensionIds(await readInstallation()),
       ...(options.extensionIds ?? []),
     ]),
   ];
@@ -199,6 +199,11 @@ export async function install(options: InstallOptions) {
     next: "Reload the extension (or restart the browser), then run tabherd doctor",
   };
 }
+export const isExtensionId = (id: unknown): id is string =>
+  typeof id === "string" && /^[a-p]{32}$/.test(id);
+// installation.json is user-editable; ignore anything that is not a valid ID.
+export const storedExtensionIds = (state: InstallState | undefined): string[] =>
+  Array.isArray(state?.extensionIds) ? state.extensionIds.filter(isExtensionId) : [];
 export interface InstallState {
   node: string;
   entry: string;
