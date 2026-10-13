@@ -30,7 +30,8 @@ export function createEventLog(api: BrowserApi, capacity = 500) {
   const waiters = new Set<() => void>();
   let seq = 0;
   function push(type: string, data: Record<string, unknown>) {
-    buffer.push({ seq: ++seq, time: Date.now(), type, ...data });
+    // Data never overrides the event's own fields.
+    buffer.push({ ...data, seq: ++seq, time: Date.now(), type });
     if (buffer.length > capacity) buffer.shift();
     for (const wake of waiters) wake();
   }
@@ -56,7 +57,11 @@ export function createEventLog(api: BrowserApi, capacity = 500) {
     push("tab.attached", { tabId, windowId: info.newWindowId, index: info.newPosition }),
   );
   listen("windows", "onCreated", (window) =>
-    push("window.created", { windowId: window.id, type: window.type, incognito: window.incognito }),
+    push("window.created", {
+      windowId: window.id,
+      windowType: window.type,
+      incognito: window.incognito,
+    }),
   );
   listen("windows", "onRemoved", (windowId) => push("window.removed", { windowId }));
   listen("windows", "onFocusChanged", (windowId) => push("window.focused", { windowId }));

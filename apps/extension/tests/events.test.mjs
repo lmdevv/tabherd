@@ -89,13 +89,16 @@ test("limits page through events, and eviction or a restart is reported", async 
   const log = createEventLog(api, 3);
   const start = (await log.read(query())).cursor;
   for (let id = 1; id <= 5; id++) listeners["windows.onCreated"]({ id, type: "normal" });
-  const evicted = await log.read(query({ cursor: start, limit: 2 }));
+  const evicted = await log.read(query({ cursor: start, limit: 2, types: ["window.created"] }));
   assert.equal(evicted.dropped, true);
   assert.equal(evicted.more, true);
   assert.deepEqual(
     evicted.events.map((e) => e.windowId),
     [3, 4],
   );
+  // The window's own type must not replace the event type.
+  assert.equal(evicted.events[0].type, "window.created");
+  assert.equal(evicted.events[0].windowType, "normal");
   const rest = await log.read(query({ cursor: evicted.cursor }));
   assert.deepEqual(
     rest.events.map((e) => e.windowId),
