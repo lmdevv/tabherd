@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,11 +32,29 @@ const fixture = createServer((_request, response) => {
   response.end(`<!doctype html><title>Tabherd fixture</title><style>body{font:18px sans-serif}#space{height:2000px}</style>
     <h1>Research about local browser control</h1><label>Name <input id="name"></label>
     <button id="save">Save</button><select id="choice"><option value="a">Alpha</option><option value="b">Beta</option></select>
-    <a href="/reference">Reference</a><p id="result">Waiting</p><div id="space"></div>
+    <a href="/reference">Reference</a><p id="result">Waiting</p>
+    <p id="hover" style="padding:8px">Hover me</p><input id="file" type="file">
+    <div id="handle" style="width:40px;height:40px;background:#c33;position:relative"></div>
+    <div id="drop" style="width:80px;height:80px;margin-left:300px;background:#3c3"></div>
+    <div id="card" draggable="true" style="width:60px;height:30px;background:#33c">Card</div>
+    <div id="bin" style="width:120px;height:60px;margin-left:300px;background:#ccc">Bin</div>
+    <p id="ghost" style="visibility:hidden">Ghost</p>
+    <div id="space"></div>
     <script>window.events=[]; nameInput=document.getElementById('name');
     nameInput.addEventListener('input',e=>events.push({type:'input',trusted:e.isTrusted}));
     nameInput.addEventListener('keydown',e=>events.push({type:'key',key:e.key,trusted:e.isTrusted}));
-    document.getElementById('save').addEventListener('click',e=>{events.push({type:'click',trusted:e.isTrusted});document.getElementById('result').textContent='Saved '+nameInput.value;});</script>`);
+    document.getElementById('save').addEventListener('click',e=>{events.push({type:'click',trusted:e.isTrusted});document.getElementById('result').textContent='Saved '+nameInput.value;});
+    document.getElementById('hover').addEventListener('mouseover',e=>{e.target.textContent='Hovered '+e.isTrusted;});
+    document.getElementById('file').addEventListener('change',e=>{window.uploaded=[...e.target.files].map(f=>f.name);});
+    const handle=document.getElementById('handle');let dragging=false;
+    handle.addEventListener('mousedown',()=>{dragging=true;});
+    addEventListener('mouseup',e=>{if(!dragging)return;dragging=false;const r=document.getElementById('drop').getBoundingClientRect();
+      window.dropped=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;});
+    const card=document.getElementById('card'),bin=document.getElementById('bin');
+    card.addEventListener('dragstart',e=>e.dataTransfer.setData('text/plain','card-1'));
+    bin.addEventListener('dragover',e=>e.preventDefault());
+    bin.addEventListener('drop',e=>{e.preventDefault();window.html5Dropped=e.dataTransfer.getData('text/plain');});
+    setTimeout(()=>{const late=document.createElement('p');late.id='late';late.textContent='Loaded later';document.body.prepend(late);},700);</script>`);
 });
 fixture.listen(0, "127.0.0.1");
 await once(fixture, "listening");
@@ -102,6 +120,14 @@ try {
     (await tool("browser_call", { method, args })).structuredContent.result;
   const page = async (tabId, action, input = {}) =>
     (await tool("browser_page", { tabId, action, ...input })).structuredContent.result;
+  const pageError = async (tabId, action, input = {}) => {
+    const response = await client.callTool({
+      name: "browser_page",
+      arguments: { tabId, action, ...input },
+    });
+    assert.ok(response.isError, JSON.stringify(response));
+    return response.content[0].text;
+  };
   const caps = (await tool("browser_capabilities")).structuredContent.result;
   assert.ok(caps.methods.includes("tabs.group"));
   const a = await call("tabs.create", [{ url, active: true }]);
@@ -116,6 +142,50 @@ try {
   assert.match(read.text, /Research about local browser control/);
   assert.ok(read.elements.some((element) => element.selector === "#name"));
   assert.equal((await page(a.id, "read", { maxTextLength: 10 })).text.length, 10);
+  const small = await page(a.id, "read", { maxElements: 1 });
+  assert.equal(small.elements.length, 1);
+  assert.ok(small.elementsTruncated);
+  assert.ok((await page(a.id, "wait", { selector: "#late", timeoutMs: 5000 })).ok);
+  await page(a.id, "wait", { text: "Loaded later" });
+  await page(a.id, "wait", { selector: "#missing", gone: true });
+  // visibility: hidden elements are not visible, so they count as gone.
+  await page(a.id, "wait", { selector: "#ghost", gone: true, timeoutMs: 1000 });
+  assert.match(
+    await pageError(a.id, "wait", { selector: "#never", timeoutMs: 300 }),
+    /Timed out after 300 ms waiting for selector #never/,
+  );
+  await page(a.id, "hover", { selector: "#hover" });
+  assert.equal(
+    await page(a.id, "evaluate", { expression: "document.getElementById('hover').textContent" }),
+    "Hovered true",
+  );
+  await page(a.id, "drag", { selector: "#handle", toSelector: "#drop" });
+  assert.equal(await page(a.id, "evaluate", { expression: "window.dropped" }), true);
+  const html5 = await page(a.id, "drag", { selector: "#card", toSelector: "#bin" });
+  assert.equal(html5.html5, true);
+  assert.equal(await page(a.id, "evaluate", { expression: "window.html5Dropped" }), "card-1");
+  const started = Date.now();
+  assert.match(
+    await pageError(a.id, "wait", { selector: "div[", timeoutMs: 10000 }),
+    /not a valid selector/,
+  );
+  assert.ok(Date.now() - started < 3000, "invalid selectors fail fast");
+  assert.match(
+    await pageError(a.id, "click", { selector: "#nope" }),
+    /No element matches selector: #nope/,
+  );
+  const upload = join(base, "notes.txt");
+  await writeFile(upload, "uploaded by tabherd");
+  assert.equal((await page(a.id, "upload", { selector: "#file", files: [upload] })).files, 1);
+  assert.deepEqual(await page(a.id, "evaluate", { expression: "window.uploaded" }), ["notes.txt"]);
+  assert.match(
+    await pageError(a.id, "upload", { selector: "#file", files: [join(base, "absent.txt")] }),
+    /Upload file not found/,
+  );
+  assert.match(
+    await pageError(a.id, "upload", { selector: "#name", files: [upload] }),
+    /input type=file/,
+  );
   await page(a.id, "type", { selector: "#name", text: "Tabherd" });
   await page(a.id, "press", { selector: "#name", key: "End" });
   await page(a.id, "click", { selector: "#save" });
@@ -142,6 +212,9 @@ try {
   const screenshot = await tool("browser_page", { tabId: a.id, action: "screenshot" });
   assert.equal(screenshot.content[0].type, "image");
   assert.equal(Buffer.from(screenshot.content[0].data, "base64").subarray(1, 4).toString(), "PNG");
+  await call("tabs.update", [a.id, { url: `${url}?reloaded` }]);
+  await page(a.id, "wait", { url: "?reloaded", timeoutMs: 10000 });
+  assert.equal((await page(a.id, "read")).url, `${url}?reloaded`);
   const group = await call("tabs.group", [{ tabIds: [a.id, b.id] }]);
   await call("tabGroups.update", [group, { title: "Research", color: "blue" }]);
   assert.equal((await call("tabGroups.get", [group])).title, "Research");
@@ -180,7 +253,7 @@ try {
   await call("tabs.remove", [[a.id, b.id, c.id]]);
   assert.ok(!(await call("tabs.query", [{}])).some((tab) => [a.id, b.id, c.id].includes(tab.id)));
   console.log(
-    "Real Chromium extension → native host → MCP passed: page read/input/click/select/scroll/evaluate/screenshot, groups, windows, tabs, bookmarks, cookies and batch failure behavior.",
+    "Real Chromium extension → native host → MCP passed: page read/wait/input/click/hover/drag/upload/select/scroll/evaluate/screenshot, groups, windows, tabs, bookmarks, cookies and batch failure behavior.",
   );
 } finally {
   await client?.close();
@@ -192,5 +265,6 @@ try {
     clearTimeout(timer);
   }
   await new Promise((resolve) => fixture.close(resolve));
-  await rm(base, { recursive: true, force: true });
+  // Browser helper processes can outlive the main process for a moment.
+  await rm(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }

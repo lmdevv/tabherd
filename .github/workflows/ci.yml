@@ -49,3 +49,21 @@ jobs:
       - run: pnpm test:browser
         env:
           TABHERD_CHROMIUM: ${{ steps.chromium.outputs.chrome-path }}
+
+  firefox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: browser-actions/setup-firefox@v1
+        id: firefox
+        with:
+          firefox-version: latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:firefox
+        env:
+          TABHERD_FIREFOX: ${{ steps.firefox.outputs.firefox-path }}

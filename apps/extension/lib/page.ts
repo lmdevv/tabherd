@@ -2,182 +2,235 @@ import type { PageInput } from "@tabherd/protocol";
 import type { BrowserApi } from "./engine.ts";
 
 // This function is serialized by scripting.executeScript: keep it self-contained.
-export function domAction(input: PageInput, mode?: "measure" | "focus") {
-  const selected = () => {
-    if (!input.selector) throw new Error(`${input.action} requires selector.`);
-    const element = document.querySelector(input.selector);
-    if (!element) throw new Error(`No element matches selector: ${input.selector}`);
-    return element as HTMLElement;
-  };
-  const selectorFor = (element: Element) => {
-    if (element.id && document.querySelectorAll(`#${CSS.escape(element.id)}`).length === 1)
-      return `#${CSS.escape(element.id)}`;
-    const parts: string[] = [];
-    let node: Element | null = element;
-    while (node && node !== document.documentElement) {
-      const tag = node.localName;
-      const siblings = node.parentElement
-        ? Array.from(node.parentElement.children).filter((child) => child.localName === tag)
-        : [];
-      parts.unshift(
-        `${tag}${siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(node) + 1})` : ""}`,
+// Chromium reports an injected function's exception as a null result, so errors come back as data.
+export function domAction(
+  input: PageInput,
+  mode?: "measure" | "locate" | "focus" | null,
+): { value: unknown } | { error: string } {
+  try {
+    return { value: run() };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+  function run() {
+    const selected = () => {
+      if (!input.selector) throw new Error(`${input.action} requires selector.`);
+      const element = document.querySelector(input.selector);
+      if (!element) throw new Error(`No element matches selector: ${input.selector}`);
+      return element as HTMLElement;
+    };
+    const selectorFor = (element: Element) => {
+      if (element.id && document.querySelectorAll(`#${CSS.escape(element.id)}`).length === 1)
+        return `#${CSS.escape(element.id)}`;
+      const parts: string[] = [];
+      let node: Element | null = element;
+      while (node && node !== document.documentElement) {
+        const tag = node.localName;
+        const siblings = node.parentElement
+          ? Array.from(node.parentElement.children).filter((child) => child.localName === tag)
+          : [];
+        parts.unshift(
+          `${tag}${siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(node) + 1})` : ""}`,
+        );
+        node = node.parentElement;
+      }
+      return `html > ${parts.join(" > ")}`;
+    };
+    if (input.action === "read") {
+      const text = document.body?.innerText ?? "";
+      const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+      const elements = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          "a[href],button,input,textarea,select,[role=button],[contenteditable=true]",
+        ),
       );
-      node = node.parentElement;
+      return {
+        title: document.title,
+        url: location.href,
+        text: text.slice(0, input.maxTextLength),
+        textTruncated: text.length > input.maxTextLength,
+        links: links.slice(0, input.maxElements).map((element) => ({
+          text: (element.innerText || element.getAttribute("aria-label") || "").slice(0, 300),
+          url: element.href,
+          selector: selectorFor(element),
+        })),
+        linksTruncated: links.length > input.maxElements,
+        elements: elements.slice(0, input.maxElements).map((element) => ({
+          selector: selectorFor(element),
+          tag: element.localName,
+          type: element.getAttribute("type"),
+          name: element.getAttribute("name"),
+          role: element.getAttribute("role"),
+          label: (
+            element.getAttribute("aria-label") ||
+            (element as HTMLInputElement).labels?.[0]?.innerText ||
+            element.innerText ||
+            element.getAttribute("placeholder") ||
+            ""
+          ).slice(0, 300),
+          disabled: Boolean((element as HTMLButtonElement).disabled),
+          ...(element instanceof HTMLTextAreaElement ||
+          (element instanceof HTMLInputElement && !["password", "file"].includes(element.type))
+            ? {
+                value: element.value.slice(0, input.maxTextLength),
+                valueTruncated: element.value.length > input.maxTextLength,
+              }
+            : {}),
+          ...(element instanceof HTMLInputElement && ["checkbox", "radio"].includes(element.type)
+            ? { checked: element.checked }
+            : {}),
+          ...(element instanceof HTMLSelectElement
+            ? {
+                options: Array.from(element.options)
+                  .slice(0, 100)
+                  .map((option) => ({
+                    value: option.value,
+                    text: option.text,
+                    selected: option.selected,
+                  })),
+              }
+            : {}),
+        })),
+        elementsTruncated: elements.length > input.maxElements,
+      };
     }
-    return `html > ${parts.join(" > ")}`;
-  };
-  if (input.action === "read") {
-    const text = document.body?.innerText ?? "";
-    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
-    const elements = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        "a[href],button,input,textarea,select,[role=button],[contenteditable=true]",
-      ),
-    );
-    return {
-      title: document.title,
-      url: location.href,
-      text: text.slice(0, input.maxTextLength),
-      textTruncated: text.length > input.maxTextLength,
-      links: links.slice(0, 200).map((element) => ({
-        text: (element.innerText || element.getAttribute("aria-label") || "").slice(0, 300),
-        url: element.href,
-        selector: selectorFor(element),
-      })),
-      linksTruncated: links.length > 200,
-      elements: elements.slice(0, 200).map((element) => ({
-        selector: selectorFor(element),
-        tag: element.localName,
-        type: element.getAttribute("type"),
-        name: element.getAttribute("name"),
-        role: element.getAttribute("role"),
-        label: (
-          element.getAttribute("aria-label") ||
-          (element as HTMLInputElement).labels?.[0]?.innerText ||
-          element.innerText ||
-          element.getAttribute("placeholder") ||
-          ""
-        ).slice(0, 300),
-        disabled: Boolean((element as HTMLButtonElement).disabled),
-        ...(element instanceof HTMLTextAreaElement ||
-        (element instanceof HTMLInputElement && !["password", "file"].includes(element.type))
-          ? {
-              value: element.value.slice(0, input.maxTextLength),
-              valueTruncated: element.value.length > input.maxTextLength,
-            }
-          : {}),
-        ...(element instanceof HTMLInputElement && ["checkbox", "radio"].includes(element.type)
-          ? { checked: element.checked }
-          : {}),
-        ...(element instanceof HTMLSelectElement
-          ? {
-              options: Array.from(element.options)
-                .slice(0, 100)
-                .map((option) => ({
-                  value: option.value,
-                  text: option.text,
-                  selected: option.selected,
-                })),
-            }
-          : {}),
-      })),
-      elementsTruncated: elements.length > 200,
-    };
-  }
-  if (input.action === "scroll") {
-    const element = input.selector ? selected() : window;
-    element.scrollBy({ left: input.x ?? 0, top: input.y ?? 0, behavior: "instant" });
-    return { ok: true };
-  }
-  if (input.action === "select") {
-    if (input.value === undefined) throw new Error("select requires value.");
-    const element = selected();
-    if (!(element instanceof HTMLSelectElement))
-      throw new Error("select requires a <select> element.");
-    if (!Array.from(element.options).some((option) => option.value === input.value))
-      throw new Error(`No option has value: ${input.value}`);
-    element.value = input.value;
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true }));
-    return { ok: true, value: element.value };
-  }
-  if (input.action === "click") {
-    const element = input.selector
-      ? selected()
-      : (document.elementFromPoint(input.x ?? -1, input.y ?? -1) as HTMLElement | null);
-    if (!element) throw new Error("click requires selector or coordinates within the viewport.");
-    element.scrollIntoView({ block: "center", inline: "center" });
-    const rect = element.getBoundingClientRect();
-    if (!rect.width || !rect.height) throw new Error("Target element is not visible.");
-    if (mode === "measure") return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-    element.click();
-    return { ok: true, trusted: false };
-  }
-  if (input.action === "type") {
-    if (input.text === undefined) throw new Error("type requires text.");
-    const element = selected();
-    element.scrollIntoView({ block: "center" });
-    element.focus();
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-      if (element.disabled || element.readOnly)
-        throw new Error("Target field is disabled or read-only.");
-      if (mode === "focus") {
-        element.select();
-        return { ok: true };
-      }
-      const prototype =
-        element instanceof HTMLTextAreaElement
-          ? HTMLTextAreaElement.prototype
-          : HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(element, input.text);
-    } else if (element.isContentEditable) {
-      if (mode === "focus") {
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-        return { ok: true };
-      }
-      element.textContent = input.text;
-    } else throw new Error("type requires an input, textarea, or contenteditable element.");
-    element.dispatchEvent(
-      new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.text }),
-    );
-    element.dispatchEvent(new Event("change", { bubbles: true }));
-    return { ok: true, trusted: false };
-  }
-  if (input.action === "press") {
-    if (!input.key) throw new Error("press requires key.");
-    const element = input.selector ? selected() : (document.activeElement as HTMLElement | null);
-    if (!element) throw new Error("No element is focused.");
-    element.focus();
-    const modifiers = input.key.split("+");
-    const key = modifiers.pop()!;
-    const options = {
-      key,
-      bubbles: true,
-      cancelable: true,
-      ctrlKey: modifiers.includes("Control"),
-      metaKey: modifiers.includes("Meta"),
-      altKey: modifiers.includes("Alt"),
-      shiftKey: modifiers.includes("Shift"),
-    };
-    const allowed = element.dispatchEvent(new KeyboardEvent("keydown", options));
-    element.dispatchEvent(new KeyboardEvent("keyup", options));
-    if (allowed && key === "Enter") {
-      if (element instanceof HTMLInputElement && element.form) element.form.requestSubmit();
-      else if (element instanceof HTMLButtonElement || element instanceof HTMLAnchorElement)
-        element.click();
+    if (input.action === "wait") {
+      let found: boolean;
+      if (input.selector) {
+        const element = document.querySelector(input.selector);
+        // visibility: hidden only counts when asked for explicitly.
+        found =
+          !!element &&
+          (element.checkVisibility?.({ visibilityProperty: true }) ??
+            (element.getClientRects().length > 0 &&
+              getComputedStyle(element).visibility !== "hidden"));
+      } else if (input.text !== undefined)
+        found = (document.body?.innerText ?? "").includes(input.text);
+      else throw new Error("wait in the page requires selector or text.");
+      return { found: input.gone ? !found : found };
     }
-    return { ok: true, trusted: false };
+    if (input.action === "scroll") {
+      const element = input.selector ? selected() : window;
+      element.scrollBy({ left: input.x ?? 0, top: input.y ?? 0, behavior: "instant" });
+      return { ok: true };
+    }
+    if (input.action === "select") {
+      if (input.value === undefined) throw new Error("select requires value.");
+      const element = selected();
+      if (!(element instanceof HTMLSelectElement))
+        throw new Error("select requires a <select> element.");
+      if (!Array.from(element.options).some((option) => option.value === input.value))
+        throw new Error(`No option has value: ${input.value}`);
+      element.value = input.value;
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return { ok: true, value: element.value };
+    }
+    if (input.action === "click" || input.action === "hover") {
+      const element = input.selector
+        ? selected()
+        : (document.elementFromPoint(input.x ?? -1, input.y ?? -1) as HTMLElement | null);
+      if (!element)
+        throw new Error(`${input.action} requires selector or coordinates within the viewport.`);
+      // locate leaves scrolling alone, so an earlier measured point stays valid.
+      if (mode !== "locate") element.scrollIntoView({ block: "center", inline: "center" });
+      const rect = element.getBoundingClientRect();
+      if (!rect.width || !rect.height) throw new Error("Target element is not visible.");
+      const x = rect.x + rect.width / 2,
+        y = rect.y + rect.height / 2;
+      if (mode === "locate" && (x < 0 || y < 0 || x > innerWidth || y > innerHeight))
+        throw new Error(
+          "Drag target is outside the viewport after scrolling to the source. Scroll or resize so both are visible, or use toX and toY.",
+        );
+      if (mode === "measure" || mode === "locate") return { x, y };
+      if (input.action === "hover") {
+        for (const type of ["pointerover", "mouseover", "pointermove", "mousemove"])
+          element.dispatchEvent(
+            new (type.startsWith("pointer") ? PointerEvent : MouseEvent)(type, {
+              bubbles: true,
+              cancelable: true,
+              clientX: x,
+              clientY: y,
+            }),
+          );
+        for (const type of ["pointerenter", "mouseenter"])
+          element.dispatchEvent(
+            new (type.startsWith("pointer") ? PointerEvent : MouseEvent)(type, {
+              clientX: x,
+              clientY: y,
+            }),
+          );
+        return { ok: true, trusted: false };
+      }
+      element.click();
+      return { ok: true, trusted: false };
+    }
+    if (input.action === "type") {
+      if (input.text === undefined) throw new Error("type requires text.");
+      const element = selected();
+      element.scrollIntoView({ block: "center" });
+      element.focus();
+      if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        if (element.disabled || element.readOnly)
+          throw new Error("Target field is disabled or read-only.");
+        if (mode === "focus") {
+          element.select();
+          return { ok: true };
+        }
+        const prototype =
+          element instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(element, input.text);
+      } else if (element.isContentEditable) {
+        if (mode === "focus") {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+          return { ok: true };
+        }
+        element.textContent = input.text;
+      } else throw new Error("type requires an input, textarea, or contenteditable element.");
+      element.dispatchEvent(
+        new InputEvent("input", { bubbles: true, inputType: "insertText", data: input.text }),
+      );
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      return { ok: true, trusted: false };
+    }
+    if (input.action === "press") {
+      if (!input.key) throw new Error("press requires key.");
+      const element = input.selector ? selected() : (document.activeElement as HTMLElement | null);
+      if (!element) throw new Error("No element is focused.");
+      element.focus();
+      const modifiers = input.key.split("+");
+      const key = modifiers.pop()!;
+      const options = {
+        key,
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: modifiers.includes("Control"),
+        metaKey: modifiers.includes("Meta"),
+        altKey: modifiers.includes("Alt"),
+        shiftKey: modifiers.includes("Shift"),
+      };
+      const allowed = element.dispatchEvent(new KeyboardEvent("keydown", options));
+      element.dispatchEvent(new KeyboardEvent("keyup", options));
+      if (allowed && key === "Enter") {
+        if (element instanceof HTMLInputElement && element.form) element.form.requestSubmit();
+        else if (element instanceof HTMLButtonElement || element instanceof HTMLAnchorElement)
+          element.click();
+      }
+      return { ok: true, trusted: false };
+    }
+    throw new Error(`Unsupported DOM action: ${input.action}`);
   }
-  throw new Error(`Unsupported DOM action: ${input.action}`);
 }
 
 export function createPageController(api: BrowserApi, chromium: boolean) {
   const pending = new Map<number, Promise<unknown>>();
-  async function inject(input: PageInput, mode?: "measure" | "focus") {
+  async function inject(input: PageInput, mode?: "measure" | "locate" | "focus"): Promise<any> {
     const results = await api.scripting.executeScript({
       target: {
         tabId: input.tabId,
@@ -191,11 +244,83 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
     );
     if (!item) throw new Error("The requested frame is unavailable.");
     if (item.error) throw new Error(item.error.message ?? String(item.error));
-    if (item.result === undefined)
+    if (typeof item.result?.error === "string") throw new Error(item.result.error);
+    if (!item.result || !("value" in item.result))
       throw new Error(
         "Page action returned no result. The page may have navigated or rejected the script.",
       );
-    return item.result;
+    return item.result.value;
+  }
+  // Center of the selected element (scrolled into view), or the given viewport coordinates.
+  async function point(input: PageInput, scroll = true): Promise<{ x: number; y: number }> {
+    if (input.selector) return inject({ ...input, action: "click" }, scroll ? "measure" : "locate");
+    if (input.x === undefined || input.y === undefined)
+      throw new Error(`${input.action} requires selector or both x and y.`);
+    return { x: input.x, y: input.y };
+  }
+  // Conditions combine: the tab URL contains url (when given), then the selector or text
+  // matches; with neither selector nor text, the tab must have finished loading.
+  async function wait(input: PageInput) {
+    const started = Date.now(),
+      deadline = started + input.timeoutMs,
+      inPage = input.selector !== undefined || input.text !== undefined;
+    let lastError = "",
+      repeats = 0;
+    for (;;) {
+      let tab: any;
+      try {
+        tab = await api.tabs.get(input.tabId);
+        const done =
+          (input.url === undefined || String(tab.url ?? "").includes(input.url)) &&
+          (inPage ? (await inject(input)).found : tab.status === "complete");
+        if (done) return { ok: true, elapsedMs: Date.now() - started, url: tab.url };
+        lastError = "";
+        repeats = 0;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!tab || /not a valid selector/i.test(message)) throw error;
+        // Navigation briefly detaches frames, so retry; but the same error on a loaded
+        // page (a protected URL, for example) will not clear.
+        repeats = message === lastError && tab.status === "complete" ? repeats + 1 : 0;
+        lastError = message;
+        if (repeats >= 2) throw error;
+      }
+      if (Date.now() >= deadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    const target = [
+      ...(input.url !== undefined ? [`a URL containing ${JSON.stringify(input.url)}`] : []),
+      input.selector !== undefined
+        ? `${input.gone ? "removal of " : ""}selector ${input.selector}`
+        : input.text !== undefined
+          ? `${input.gone ? "removal of " : ""}text ${JSON.stringify(input.text)}`
+          : "the tab to finish loading",
+    ].join(" and ");
+    throw new Error(
+      `Timed out after ${input.timeoutMs} ms waiting for ${target}.${lastError ? ` Last error: ${lastError}` : ""}`,
+    );
+  }
+  async function evaluateInFirefox(input: PageInput) {
+    if (!input.expression) throw new Error("evaluate requires expression.");
+    if (input.frameId !== undefined && input.frameId !== 0)
+      throw new Error("evaluate supports the main frame only. Omit frameId or use frameId: 0.");
+    // window.eval runs in the page's own context, like Chromium's Runtime.evaluate.
+    // Serializing there avoids cross-compartment wrappers around page objects.
+    const pageCode = `(async () => { const value = await eval(${JSON.stringify(input.expression)}); const json = JSON.stringify(value === undefined ? null : value); return json === undefined ? "null" : json; })()`;
+    try {
+      const [json] = await api.tabs.executeScript(input.tabId, {
+        code: `window.eval(${JSON.stringify(pageCode)}).then((json) => String(json))`,
+      });
+      if (typeof json !== "string") throw new Error("Evaluation returned no result.");
+      return JSON.parse(json);
+    } catch (error) {
+      if (!/blocked by CSP/i.test(error instanceof Error ? error.message : String(error)))
+        throw error;
+    }
+    // The page's CSP forbids eval: run in the isolated content-script context instead.
+    // It shares the DOM but not page-defined globals.
+    const [value] = await api.tabs.executeScript(input.tabId, { code: input.expression });
+    return value ?? null;
   }
   async function debug(input: PageInput) {
     const target = { tabId: input.tabId };
@@ -259,20 +384,92 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
         });
         return { dataUrl: `data:image/png;base64,${result.data}` };
       }
+      if (input.action === "hover") {
+        await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...(await point(input)) });
+        return { ok: true, trusted: true };
+      }
+      if (input.action === "drag") {
+        const from = await point(input);
+        const to = input.toSelector
+          ? await point({ ...input, selector: input.toSelector }, false)
+          : input.toX !== undefined && input.toY !== undefined
+            ? { x: input.toX, y: input.toY }
+            : undefined;
+        if (!to) throw new Error("drag requires toSelector or both toX and toY.");
+        // A native HTML5 drag never sees synthetic mouse moves. With interception on,
+        // Chrome reports the drag's data instead, and drag events complete it.
+        let dragData: unknown;
+        const onEvent = (source: { tabId?: number }, method: string, params: any) => {
+          if (source.tabId === input.tabId && method === "Input.dragIntercepted")
+            dragData = params?.data;
+        };
+        api.debugger.onEvent?.addListener(onEvent);
+        try {
+          await send("Input.setInterceptDrags", { enabled: true });
+          await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...from });
+          await send("Input.dispatchMouseEvent", {
+            type: "mousePressed",
+            ...from,
+            button: "left",
+            buttons: 1,
+            clickCount: 1,
+          });
+          // Intermediate moves let drag libraries pass their movement thresholds.
+          for (let step = 1; step <= 10; step++)
+            await send("Input.dispatchMouseEvent", {
+              type: "mouseMoved",
+              x: from.x + ((to.x - from.x) * step) / 10,
+              y: from.y + ((to.y - from.y) * step) / 10,
+              button: "left",
+              buttons: 1,
+            });
+          // The interception event can trail the move that started the drag.
+          for (let i = 0; i < 5 && dragData === undefined; i++)
+            await new Promise((resolve) => setTimeout(resolve, 20));
+          if (dragData !== undefined)
+            for (const type of ["dragEnter", "dragOver", "drop"])
+              await send("Input.dispatchDragEvent", { type, ...to, data: dragData });
+          await send("Input.dispatchMouseEvent", {
+            type: "mouseReleased",
+            ...to,
+            button: "left",
+            buttons: 0,
+            clickCount: 1,
+          });
+          return { ok: true, trusted: true, from, to, html5: dragData !== undefined };
+        } finally {
+          api.debugger.onEvent?.removeListener(onEvent);
+          await send("Input.setInterceptDrags", { enabled: false }).catch(() => {});
+        }
+      }
+      if (input.action === "upload") {
+        if (!input.selector) throw new Error("upload requires selector.");
+        if (!input.files?.length) throw new Error("upload requires files.");
+        const found = await send("Runtime.evaluate", {
+          expression: `(() => { const element = document.querySelector(${JSON.stringify(input.selector)}); return element instanceof HTMLInputElement && element.type === "file" ? element : element ? "not-file" : "missing"; })()`,
+        });
+        if (found.result?.value === "missing")
+          throw new Error(`No element matches selector: ${input.selector}`);
+        if (!found.result?.objectId)
+          throw new Error("upload requires an <input type=file> element.");
+        await send("DOM.setFileInputFiles", {
+          files: input.files,
+          objectId: found.result.objectId,
+        });
+        return { ok: true, files: input.files.length };
+      }
       if (input.action === "click") {
-        if (!input.selector && (input.x === undefined || input.y === undefined))
-          throw new Error("click requires selector or both x and y.");
-        const point = input.selector ? await inject(input, "measure") : { x: input.x, y: input.y };
-        await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+        const target = await point(input);
+        await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...target });
         await send("Input.dispatchMouseEvent", {
           type: "mousePressed",
-          ...point,
+          ...target,
           button: "left",
           clickCount: 1,
         });
         await send("Input.dispatchMouseEvent", {
           type: "mouseReleased",
-          ...point,
+          ...target,
           button: "left",
           clickCount: 1,
         });
@@ -399,10 +596,16 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
     }
   }
   return async (input: PageInput) => {
-    if (chromium && ["click", "type", "press", "evaluate", "screenshot"].includes(input.action)) {
+    if (input.action === "wait") return wait(input);
+    if (
+      chromium &&
+      ["click", "type", "press", "evaluate", "screenshot", "hover", "drag", "upload"].includes(
+        input.action,
+      )
+    ) {
       if (input.frameId !== undefined && input.frameId !== 0)
         throw new Error(
-          "Trusted Chromium input, evaluate, and screenshot support the main frame only. Omit frameId or use frameId: 0.",
+          "Trusted Chromium input, evaluate, upload, and screenshot support the main frame only. Omit frameId or use frameId: 0.",
         );
       // A debugger session is owned by exactly one request, including detach.
       const previous = pending.get(input.tabId) ?? Promise.resolve();
@@ -414,9 +617,10 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
         if (pending.get(input.tabId) === current) pending.delete(input.tabId);
       }
     }
-    if (input.action === "evaluate")
+    if (input.action === "evaluate") return evaluateInFirefox(input);
+    if (input.action === "drag" || input.action === "upload")
       throw new Error(
-        "evaluate requires Chromium's debugger API; Firefox supports DOM page actions only.",
+        `${input.action} requires Chromium's debugger API and is unavailable in Firefox.`,
       );
     if (input.action === "screenshot") {
       if (input.frameId !== undefined && input.frameId !== 0)
@@ -429,11 +633,11 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
       return { dataUrl: await api.tabs.captureVisibleTab(tab.windowId, { format: "png" }) };
     }
     if (
-      input.action === "click" &&
+      (input.action === "click" || input.action === "hover") &&
       !input.selector &&
       (input.x === undefined || input.y === undefined)
     )
-      throw new Error("click requires selector or both x and y.");
+      throw new Error(`${input.action} requires selector or both x and y.`);
     return inject(input);
   };
 }

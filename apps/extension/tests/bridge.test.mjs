@@ -64,7 +64,7 @@ test("page read verifies current form values and checked state without exposing 
       },
     },
   };
-  const read = () => runInNewContext(`(${domAction.toString()})(input)`, context).elements;
+  const read = () => runInNewContext(`(${domAction.toString()})(input)`, context).value.elements;
   let result = read();
   assert.equal(result[0].value, "before");
   assert.equal(result[1].value, "current notes");
@@ -226,7 +226,7 @@ test("Chromium page click uses measured coordinates and trusted input", async ()
         async executeScript(options) {
           assert.equal(options.func, domAction);
           assert.equal(options.args[0].selector, "#submit");
-          return [{ frameId: 0, result: { x: 50, y: 25 } }];
+          return [{ frameId: 0, result: { value: { x: 50, y: 25 } } }];
         },
       },
       debugger: {
@@ -252,7 +252,9 @@ test("Chromium page click uses measured coordinates and trusted input", async ()
 
 test("Firefox reports script errors and protects visible screenshot semantics", async () => {
   const engine = createEngine({}, false);
-  assert.ok(!(await engine.dispatch("capabilities")).pageActions.includes("evaluate"));
+  const actions = (await engine.dispatch("capabilities")).pageActions;
+  assert.ok(actions.includes("evaluate") && actions.includes("wait"));
+  assert.ok(!actions.includes("drag") && !actions.includes("upload"));
   const controller = createPageController(
     {
       tabs: {
@@ -269,8 +271,12 @@ test("Firefox reports script errors and protects visible screenshot semantics", 
     false,
   );
   await assert.rejects(
-    controller(page({ action: "evaluate", expression: "1" })),
-    /requires Chromium/,
+    controller(page({ action: "drag", selector: "#a", toX: 1, toY: 2 })),
+    /unavailable in Firefox/,
+  );
+  await assert.rejects(
+    controller(page({ action: "upload", selector: "#a", files: ["/f"] })),
+    /unavailable in Firefox/,
   );
   await assert.rejects(controller(page({ action: "screenshot" })), /target tab to be active/);
   await assert.rejects(
@@ -416,4 +422,206 @@ test("a disconnected mutation is not replayed on the new connection", async () =
   await settle();
   assert.equal(performed, 1);
   assert.equal(ports[1].messages.length, 1);
+});
+
+test("Firefox evaluate runs in the page and falls back when CSP forbids eval", async () => {
+  const scripts = [];
+  let blocked = false;
+  const controller = createPageController(
+    {
+      tabs: {
+        async executeScript(tabId, { code }) {
+          assert.equal(tabId, 12);
+          scripts.push(code);
+          if (code.startsWith("window.eval(")) {
+            if (blocked) throw new Error("call to eval() blocked by CSP");
+            // Simulate the page: evaluate the wrapper and its JSON serialization.
+            const pageCode = JSON.parse(code.slice("window.eval(".length, code.indexOf(").then(")));
+            // oxlint-disable-next-line no-eval -- stands in for the page's own eval
+            return [String(await (0, eval)(pageCode))];
+          }
+          return [{ isolated: code }];
+        },
+      },
+    },
+    false,
+  );
+  assert.deepEqual(await controller(page({ action: "evaluate", expression: "({ a: [1, 2] })" })), {
+    a: [1, 2],
+  });
+  assert.equal(await controller(page({ action: "evaluate", expression: "undefined" })), null);
+  assert.equal(await controller(page({ action: "evaluate", expression: "Promise.resolve(5)" })), 5);
+  await assert.rejects(
+    controller(page({ action: "evaluate", expression: "throw new Error('page failure')" })),
+    /page failure/,
+  );
+  blocked = true;
+  assert.deepEqual(await controller(page({ action: "evaluate", expression: "document.title" })), {
+    isolated: "document.title",
+  });
+  assert.equal(scripts.at(-1), "document.title");
+});
+
+test("wait polls through navigation errors and reports what timed out", async () => {
+  let loads = 0,
+    removed = 0,
+    url = "https://old.test/";
+  const controller = createPageController(
+    {
+      tabs: {
+        async get() {
+          return { status: ++loads < 3 ? "loading" : "complete", url };
+        },
+      },
+      scripting: {
+        async executeScript({ args: [input] }) {
+          if (input.selector === "div[")
+            return [{ frameId: 0, result: { error: "'div[' is not a valid selector." } }];
+          if (input.selector === "#protected") throw new Error("Cannot access a chrome:// URL");
+          if (input.selector === "#flaky" && removed++ === 0)
+            throw new Error("Frame with ID 0 was removed.");
+          return [{ frameId: 0, result: { value: { found: input.selector === "#flaky" } } }];
+        },
+      },
+    },
+    true,
+  );
+  assert.ok((await controller(page({ action: "wait" }))).ok, "waits for tab load");
+  assert.equal(loads, 3);
+  assert.ok((await controller(page({ action: "wait", selector: "#flaky" }))).ok);
+  assert.equal(removed, 2, "retried after the navigation error");
+  await assert.rejects(
+    controller(page({ action: "wait", selector: "#never", timeoutMs: 250 })),
+    /Timed out after 250 ms waiting for selector #never/,
+  );
+  await assert.rejects(
+    controller(page({ action: "wait", text: "Done", gone: true, timeoutMs: 0 })),
+    /waiting for removal of text "Done"/,
+  );
+  // Errors that cannot clear fail fast instead of running out the timeout.
+  let started = Date.now();
+  await assert.rejects(
+    controller(page({ action: "wait", selector: "div[", timeoutMs: 10000 })),
+    /not a valid selector/,
+  );
+  await assert.rejects(
+    controller(page({ action: "wait", selector: "#protected", timeoutMs: 10000 })),
+    /Cannot access/,
+  );
+  assert.ok(Date.now() - started < 2000);
+  // url guards against the old page still reporting complete after a navigating click.
+  started = Date.now();
+  setTimeout(() => {
+    url = "https://new.test/done";
+  }, 300);
+  const navigated = await controller(page({ action: "wait", url: "new.test", timeoutMs: 5000 }));
+  assert.equal(navigated.url, "https://new.test/done");
+  assert.ok(Date.now() - started >= 300);
+  await assert.rejects(
+    controller(page({ action: "wait", url: "elsewhere", selector: "#flaky", timeoutMs: 0 })),
+    /a URL containing "elsewhere" and selector #flaky/,
+  );
+});
+
+test("Chromium drag keeps the measured source and upload targets the file input", async () => {
+  const commands = [],
+    modes = [];
+  const controller = createPageController(
+    {
+      scripting: {
+        async executeScript({ args: [input, mode] }) {
+          modes.push(mode);
+          return [
+            {
+              frameId: 0,
+              result: { value: input.selector === "#from" ? { x: 0, y: 0 } : { x: 100, y: 50 } },
+            },
+          ];
+        },
+      },
+      debugger: {
+        async attach() {},
+        async detach() {},
+        async sendCommand(_target, method, params) {
+          commands.push({ method, params });
+          if (method === "Runtime.evaluate")
+            return params.expression.includes("#text")
+              ? { result: { value: "not-file" } }
+              : { result: { objectId: "file-input" } };
+          return {};
+        },
+      },
+    },
+    true,
+  );
+  const drag = await controller(page({ action: "drag", selector: "#from", toSelector: "#to" }));
+  assert.equal(drag.html5, false, "no native drag started");
+  assert.deepEqual(
+    [drag.from, drag.to],
+    [
+      { x: 0, y: 0 },
+      { x: 100, y: 50 },
+    ],
+  );
+  assert.deepEqual(modes, ["measure", "locate"], "the target is located without scrolling");
+  assert.deepEqual(commands[0], {
+    method: "Input.setInterceptDrags",
+    params: { enabled: true },
+  });
+  assert.deepEqual(commands.at(-1), {
+    method: "Input.setInterceptDrags",
+    params: { enabled: false },
+  });
+  commands.splice(0, 1);
+  commands.splice(-1, 1);
+  const types = commands.map((command) => command.params.type);
+  assert.deepEqual(
+    [types[0], types[1], types.at(-1)],
+    ["mouseMoved", "mousePressed", "mouseReleased"],
+  );
+  assert.deepEqual(commands.at(-2).params, {
+    type: "mouseMoved",
+    x: 100,
+    y: 50,
+    button: "left",
+    buttons: 1,
+  });
+  commands.length = 0;
+  assert.deepEqual(
+    await controller(page({ action: "upload", selector: "#file", files: ["/a.txt"] })),
+    {
+      ok: true,
+      files: 1,
+    },
+  );
+  assert.deepEqual(commands.at(-1), {
+    method: "DOM.setFileInputFiles",
+    params: { files: ["/a.txt"], objectId: "file-input" },
+  });
+  await assert.rejects(
+    controller(page({ action: "upload", selector: "#text", files: ["/a.txt"] })),
+    /input type=file/,
+  );
+});
+
+test("errors thrown in the page come back as data, since Chromium reports them as null", async () => {
+  const context = {
+    input: page({ action: "click", selector: "#missing" }),
+    document: { querySelector: () => null },
+  };
+  assert.equal(
+    runInNewContext(`(${domAction.toString()})(input)`, context).error,
+    "No element matches selector: #missing",
+  );
+  const controller = createPageController(
+    {
+      scripting: {
+        async executeScript() {
+          return [{ frameId: 0, result: null }];
+        },
+      },
+    },
+    false,
+  );
+  await assert.rejects(controller(page({ action: "read" })), /returned no result/);
 });

@@ -8,6 +8,8 @@ export const CHROMIUM_KEY =
 export const CHROMIUM_ID = "hepgdbeccdmbongocnnamapillglcbgk";
 export const PROTOCOL_VERSION = 1;
 export const MAX_MESSAGE_BYTES = 900_000;
+// Long waits stay under the 60-second client request timeout.
+export const MAX_WAIT_MS = 45_000;
 export const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 const connectionId = z.string().min(1).max(200).optional();
@@ -38,6 +40,10 @@ export const PageRequest = z
       "press",
       "evaluate",
       "screenshot",
+      "wait",
+      "hover",
+      "drag",
+      "upload",
     ]),
     selector: z.string().min(1).max(4096).optional(),
     text: z.string().max(100_000).optional(),
@@ -46,7 +52,19 @@ export const PageRequest = z
     x: z.number().finite().optional(),
     y: z.number().finite().optional(),
     expression: z.string().min(1).max(100_000).optional(),
+    // drag target
+    toSelector: z.string().min(1).max(4096).optional(),
+    toX: z.number().finite().optional(),
+    toY: z.number().finite().optional(),
+    // upload: absolute local paths; the CLI resolves relative paths
+    files: z.array(z.string().min(1).max(4096)).min(1).max(100).optional(),
+    // wait: for selector/text to appear (or disappear with gone), else for the tab to load;
+    // url requires the tab URL to contain it, which avoids matching the page before a navigation
+    gone: z.boolean().optional(),
+    url: z.string().min(1).max(4096).optional(),
+    timeoutMs: z.number().int().min(0).max(MAX_WAIT_MS).default(10_000),
     maxTextLength: z.number().int().min(1).max(100_000).default(20_000),
+    maxElements: z.number().int().min(1).max(1000).default(200),
     frameId: z.number().int().nonnegative().optional(),
   })
   .strict();
