@@ -10,12 +10,12 @@ Requires Node.js 22.18 or newer.
 npm install -g tabherd
 ```
 
-1. Download `tabherd-VERSION-chrome.zip` from the [latest release](https://github.com/lmdevv/tabherd/releases/latest) and unzip it. Load the folder as an unpacked extension in Chrome, Chromium, Edge, or Brave (Developer mode → **Load unpacked**). Copy its extension ID.
-2. Register the host: `tabherd setup --browser chrome --extension-id YOUR_EXTENSION_ID`.
+1. Download `tabherd-VERSION-chrome.zip` from the [latest release](https://github.com/lmdevv/tabherd/releases/latest) and unzip it. Load the folder as an unpacked extension in Chrome, Chromium, Edge, or Brave (Developer mode → **Load unpacked**).
+2. Register the host for every installed browser: `tabherd setup`.
 3. Reload the extension and check its popup connection.
-4. Run `tabherd status`, then `tabherd call tabs.query '[{}]'`.
+4. Run `tabherd doctor`, then `tabherd call tabs.query '[{}]'`.
 
-For Firefox, download `tabherd-VERSION-firefox.zip`, temporarily load its `manifest.json` from `about:debugging`, and register with `tabherd setup --browser firefox`.
+For Firefox, download `tabherd-VERSION-firefox.zip` and temporarily load its `manifest.json` from `about:debugging`.
 
 Add the bridge to your agent’s stdio MCP configuration:
 

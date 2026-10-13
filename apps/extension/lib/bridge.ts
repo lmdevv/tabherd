@@ -8,6 +8,16 @@ import {
 import { createEngine, type BrowserApi } from "./engine.ts";
 
 export const RETRY_ALARM = "tabherd-native-reconnect";
+// Alarms wake a stopped service worker, which then reconnects if the bridge is down.
+export const KEEPALIVE_ALARM = "tabherd-keepalive";
+
+const isWelcome = (value: unknown): value is { type: "welcome"; version: string } =>
+  !!value &&
+  typeof value === "object" &&
+  "type" in value &&
+  value.type === "welcome" &&
+  "version" in value &&
+  typeof value.version === "string";
 
 export function createBridge(api: BrowserApi, chromium: boolean) {
   const engine = createEngine(api, chromium);
@@ -19,6 +29,7 @@ export function createBridge(api: BrowserApi, chromium: boolean) {
     connectionId: "",
     extensionId: api.runtime.id,
     browser: chromium ? "chrome" : "firefox",
+    hostVersion: "",
   };
   const response = (id: string, result?: unknown, error?: string) => {
     let message =
@@ -42,6 +53,10 @@ export function createBridge(api: BrowserApi, chromium: boolean) {
     return message;
   };
   async function receive(source: any, value: unknown) {
+    if (isWelcome(value)) {
+      status.hostVersion = value.version;
+      return;
+    }
     const parsed = WireRequest.safeParse(value);
     if (!parsed.success) {
       if (value && typeof value === "object" && "id" in value && typeof value.id === "string") {
@@ -73,6 +88,7 @@ export function createBridge(api: BrowserApi, chromium: boolean) {
         if (!stored.tabherdProfileId) await api.storage.local.set({ tabherdProfileId: profileId });
         status.connectionId = `${profileId}${api.extension?.inIncognitoContext ? ":private" : ""}`;
         status.error = "";
+        status.hostVersion = "";
         const native = api.runtime.connectNative(HOST_NAME);
         port = native;
         native.onMessage.addListener((value: unknown) => {

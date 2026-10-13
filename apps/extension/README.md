@@ -4,8 +4,9 @@ Build with `pnpm --filter extension build`, then load `dist/chrome-mv3` through
 Chrome's **Load unpacked**. Firefox: `pnpm --filter extension build:firefox`, then
 load `dist/firefox-mv2/manifest.json` as a temporary add-on.
 
-Install the local native host with the CLI's `setup` command. The popup shows the
-extension ID to use during setup, its profile ID, and connection status.
+Install the local native host with the CLI's `setup` command. The manifest key pins the
+Chromium extension ID, so setup needs no ID. The popup shows the profile ID, bridge version,
+and connection status.
 Reload the extension after rebuilding. The bridge reconnects automatically;
 the popup also has a reconnect button.
 

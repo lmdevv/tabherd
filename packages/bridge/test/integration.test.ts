@@ -26,13 +26,18 @@ function browser(state: string, profile: string) {
   });
   const decoder = new FrameDecoder(),
     calls: Forwarded[] = [];
-  let stderr = "";
+  let stderr = "",
+    welcome: string | undefined;
   host.stderr.on("data", (chunk) => {
     stderr += chunk;
   });
   host.stdout.on("data", (chunk) => {
     for (const raw of decoder.push(chunk)) {
-      const message = raw as Forwarded;
+      const message = raw as Forwarded & { type: string; version?: string };
+      if (message.type === "welcome") {
+        welcome = message.version;
+        continue;
+      }
       calls.push(message);
       if (message.input?.args?.[0] === "hang") continue;
       host.stdin.write(
@@ -60,6 +65,9 @@ function browser(state: string, profile: string) {
   return {
     host,
     calls,
+    get welcome() {
+      return welcome;
+    },
     get stderr() {
       return stderr;
     },
@@ -154,6 +162,11 @@ test(
         live = await discover();
       }
       assert.equal(live.length, 2, `native-host startup: ${a.stderr} ${b.stderr}`);
+      for (let attempt = 0; !a.welcome && attempt < 50; attempt++) await delay(10);
+      assert.equal(
+        a.welcome,
+        JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version,
+      );
       const target = live.find((c) => c.connectionId === "profile-a")!;
       if (process.platform !== "win32") {
         assert.equal((await stat(state)).mode & 0o777, 0o700);
@@ -370,10 +383,8 @@ test(
       await close(a.host);
       await close(b.host);
       assert.deepEqual(await discover(), []);
-      assert.deepEqual((await readdir(join(state, "connections"))).sort(), [
-        "malformed.json",
-        "stale.json",
-      ]);
+      // stale.json named a host that has now exited, so discovery removed it.
+      assert.deepEqual((await readdir(join(state, "connections"))).sort(), ["malformed.json"]);
       const empty = await client.call("tools/call", { name: "browser_connections", arguments: {} });
       assert.deepEqual(empty.result.structuredContent.result, []);
       const unavailable = await client.call("tools/call", {

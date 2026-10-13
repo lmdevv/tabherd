@@ -1,5 +1,5 @@
 import { browser } from "wxt/browser";
-import { createBridge, RETRY_ALARM } from "../lib/bridge";
+import { createBridge, KEEPALIVE_ALARM, RETRY_ALARM } from "../lib/bridge";
 
 export default defineBackground({
   main() {
@@ -15,8 +15,9 @@ export default defineBackground({
       }
     });
     browser.alarms.onAlarm.addListener((alarm) => {
-      if (alarm.name === RETRY_ALARM) void bridge.connect();
+      if (alarm.name === RETRY_ALARM || alarm.name === KEEPALIVE_ALARM) void bridge.connect();
     });
+    void browser.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 1 });
     browser.runtime.onInstalled.addListener(() => {
       void bridge.connect();
     });

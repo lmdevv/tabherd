@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,9 +18,8 @@ const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const entry = join(root, "packages/bridge/dist/index.js");
 const extension = join(root, "apps/extension/dist/chrome-mv3");
-const extensionId = Array.from(createHash("sha256").update(extension).digest("hex").slice(0, 32))
-  .map((c) => String.fromCharCode(97 + parseInt(c, 16)))
-  .join("");
+// The manifest key pins this ID wherever the extension is loaded from.
+const extensionId = "hepgdbeccdmbongocnnamapillglcbgk";
 const base = await mkdtemp(join(tmpdir(), "tabherd-browser-smoke-"));
 const profile = join(base, "profile");
 const env = {
@@ -56,15 +54,7 @@ try {
     join(profile, "NativeMessagingHosts"),
     join(env.XDG_CONFIG_HOME, "chromium/NativeMessagingHosts"),
   ]) {
-    await cli([
-      "setup",
-      "--browser",
-      "chromium",
-      "--extension-id",
-      extensionId,
-      "--manifest-dir",
-      directory,
-    ]);
+    await cli(["setup", "--browser", "chromium", "--manifest-dir", directory]);
   }
   chrome = spawn(
     process.env.TABHERD_CHROMIUM ?? "chromium",
@@ -97,6 +87,8 @@ try {
   }
   assert.equal(connections.length, 1, `Extension failed to connect. ${logs}`);
   assert.equal(connections[0].extensionId, extensionId);
+  const report = await cli(["doctor"]).catch((error) => JSON.parse(error.stdout));
+  assert.ok(report.ok, JSON.stringify(report));
   client = new Client({ name: "tabherd-browser-smoke", version: "1" });
   await client.connect(
     new StdioClientTransport({ command: process.execPath, args: [entry, "mcp"], env }),

@@ -1,5 +1,5 @@
 import { createConnection } from "node:net";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import {
@@ -75,28 +75,53 @@ export function request(
     );
   });
 }
-export async function discover(): Promise<Connection[]> {
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM means the process exists but belongs to someone else.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+};
+export async function inspectConnections(): Promise<{ live: Connection[]; stale: number }> {
   const dir = join(stateDirectory(), "connections");
   let files: string[];
   try {
     files = await readdir(dir);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { live: [], stale: 0 };
     throw error;
   }
+  let stale = 0;
   const results = await Promise.allSettled(
     files
       .filter((name) => name.endsWith(".json"))
       .map(async (file) => {
-        const connection = Descriptor.parse(JSON.parse(await readFile(join(dir, file), "utf8")));
-        await request(connection, "ping", undefined, 1500);
+        const path = join(dir, file);
+        const connection = Descriptor.parse(JSON.parse(await readFile(path, "utf8")));
+        try {
+          await request(connection, "ping", undefined, 1500);
+        } catch (error) {
+          // Only a crashed host leaves its descriptor behind; a live but busy host keeps it.
+          if (!alive(connection.pid)) {
+            await unlink(path).catch(() => undefined);
+            stale++;
+          }
+          throw error;
+        }
         return connection;
       }),
   );
-  // Ignore stale descriptors; never delete another process's registry entry during discovery.
-  return results
-    .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
-    .sort((a, b) => b.connectedAt - a.connectedAt);
+  return {
+    live: results
+      .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
+      .sort((a, b) => b.connectedAt - a.connectedAt),
+    stale,
+  };
+}
+export async function discover(): Promise<Connection[]> {
+  return (await inspectConnections()).live;
 }
 export async function dispatch(method: BridgeMethod, raw: unknown = {}): Promise<unknown> {
   const input =

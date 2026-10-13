@@ -80,15 +80,16 @@ tabherd page 42 '{"action":"read"}'
 tabherd batch '[{"method":"tabs.query","args":[{}]}]'
 ```
 
-| Command                   | Usage                                                                         |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| `status`                  | List live connections.                                                        |
-| `capabilities`            | Inspect supported methods and actions.                                        |
-| `call METHOD JSON_ARGS`   | Call a browser API with a JSON argument array.                                |
-| `page TAB_ID JSON_OBJECT` | Run a page action.                                                            |
-| `batch JSON_CALLS`        | Run a JSON array of API calls; add `--continue-on-error` to keep going.       |
-| `mcp`                     | Start the stdio MCP server.                                                   |
-| `setup --browser NAME`    | Register the native host; Chromium browsers also require `--extension-id ID`. |
-| `uninstall`               | Remove all Tabherd native host registrations.                                 |
+| Command                   | Usage                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| `status`                  | List live connections.                                                           |
+| `capabilities`            | Inspect supported methods and actions.                                           |
+| `call METHOD JSON_ARGS`   | Call a browser API with a JSON argument array.                                   |
+| `page TAB_ID JSON_OBJECT` | Run a page action.                                                               |
+| `batch JSON_CALLS`        | Run a JSON array of API calls; add `--continue-on-error` to keep going.          |
+| `mcp`                     | Start the stdio MCP server.                                                      |
+| `setup`                   | Register the native host for installed browsers; add `--browser NAME` to choose. |
+| `doctor`                  | Check the installation and connection, with a fix for each problem.              |
+| `uninstall`               | Remove all Tabherd native host registrations.                                    |
 
 Add `--connection ID` to `capabilities`, `call`, `page`, or `batch` to choose a profile. Run `--help` for command options.

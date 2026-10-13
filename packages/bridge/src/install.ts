@@ -1,14 +1,16 @@
 import { homedir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import { access, mkdir, readFile, writeFile, unlink } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { HOST_NAME, FIREFOX_ID } from "@tabherd/protocol";
+import { HOST_NAME, FIREFOX_ID, CHROMIUM_ID } from "@tabherd/protocol";
 import { prepareState, stateDirectory } from "./paths";
 
 const exec = promisify(execFile);
-export type BrowserName = "chrome" | "chromium" | "edge" | "brave" | "firefox";
+export const BROWSERS = ["chrome", "chromium", "edge", "brave", "firefox"] as const;
+export type BrowserName = (typeof BROWSERS)[number];
 export interface Registration {
   browser: BrowserName;
   manifestPath: string;
@@ -66,6 +68,42 @@ export function registration(
     return { browser, manifestPath: join(home, dirs.linux, `${HOST_NAME}.json`) };
   throw new Error(`Unsupported platform: ${platform}`);
 }
+// Profile directories show which browsers this user has run.
+export function detectBrowsers(
+  platform: string,
+  home: string,
+  env: Record<string, string | undefined> = process.env,
+  exists: (path: string) => boolean = existsSync,
+): BrowserName[] {
+  const local = env.LOCALAPPDATA ?? join(home, "AppData", "Local"),
+    roaming = env.APPDATA ?? join(home, "AppData", "Roaming"),
+    support = join(home, "Library", "Application Support");
+  const paths: Record<BrowserName, string> =
+    platform === "win32"
+      ? {
+          chrome: join(local, "Google", "Chrome", "User Data"),
+          chromium: join(local, "Chromium", "User Data"),
+          edge: join(local, "Microsoft", "Edge", "User Data"),
+          brave: join(local, "BraveSoftware", "Brave-Browser", "User Data"),
+          firefox: join(roaming, "Mozilla", "Firefox"),
+        }
+      : platform === "darwin"
+        ? {
+            chrome: join(support, "Google", "Chrome"),
+            chromium: join(support, "Chromium"),
+            edge: join(support, "Microsoft Edge"),
+            brave: join(support, "BraveSoftware", "Brave-Browser"),
+            firefox: join(support, "Firefox"),
+          }
+        : {
+            chrome: join(home, ".config", "google-chrome"),
+            chromium: join(home, ".config", "chromium"),
+            edge: join(home, ".config", "microsoft-edge"),
+            brave: join(home, ".config", "BraveSoftware", "Brave-Browser"),
+            firefox: join(home, ".mozilla"),
+          };
+  return BROWSERS.filter((browser) => exists(paths[browser]));
+}
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 export function launcherText(platform: string, node: string, entry: string, state?: string) {
   if ([node, entry, ...(state ? [state] : [])].some((v) => /[\r\n]/.test(v)))
@@ -80,18 +118,18 @@ export function launcherText(platform: string, node: string, entry: string, stat
 }
 export interface InstallOptions {
   browsers: BrowserName[];
-  extensionId?: string;
+  /** Extra Chromium extension IDs, e.g. a store or self-built copy. The release ID is always allowed. */
+  extensionIds?: string[];
   manifestDirectory?: string;
 }
 export async function install(options: InstallOptions) {
   if (!options.browsers.length) throw new Error("Select a browser");
-  if (
-    options.browsers.some((b) => b !== "firefox") &&
-    !/^[a-p]{32}$/.test(options.extensionId ?? "")
-  )
+  const invalid = (options.extensionIds ?? []).find((id) => !/^[a-p]{32}$/.test(id));
+  if (invalid !== undefined)
     throw new Error(
-      "Provide --extension-id with the installed extension's 32-letter ID from chrome://extensions",
+      `Invalid --extension-id ${JSON.stringify(invalid)}: use the 32-letter ID from chrome://extensions`,
     );
+  const extensionIds = [...new Set([CHROMIUM_ID, ...(options.extensionIds ?? [])])];
   if (options.manifestDirectory && options.browsers.length !== 1)
     throw new Error("--manifest-dir requires exactly one browser");
   const state = await prepareState();
@@ -114,7 +152,7 @@ export async function install(options: InstallOptions) {
       type: "stdio",
       ...(browser === "firefox"
         ? { allowed_extensions: [FIREFOX_ID] }
-        : { allowed_origins: [`chrome-extension://${options.extensionId}/`] }),
+        : { allowed_origins: extensionIds.map((id) => `chrome-extension://${id}/`) }),
     };
     await mkdir(dirname(reg.manifestPath), { recursive: true });
     await writeFile(reg.manifestPath, JSON.stringify(manifest, null, 2), { mode: 0o600 });
@@ -149,17 +187,26 @@ export async function install(options: InstallOptions) {
     launcher,
     node,
     entry,
-    next: "Enable or reload the extension, wait up to one minute, then run tabherd status",
+    extensionIds: options.browsers.some((b) => b !== "firefox") ? extensionIds : undefined,
+    next: "Reload the extension (or restart the browser), then run tabherd doctor",
   };
 }
-async function readInstallState(): Promise<Registration[]> {
+export interface InstallState {
+  node: string;
+  entry: string;
+  launcher: string;
+  registrations: Registration[];
+}
+export async function readInstallation(): Promise<InstallState | undefined> {
   try {
-    const data = JSON.parse(await readFile(join(stateDirectory(), "installation.json"), "utf8"));
-    return data.registrations ?? [];
+    return JSON.parse(await readFile(join(stateDirectory(), "installation.json"), "utf8"));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
+}
+async function readInstallState(): Promise<Registration[]> {
+  return (await readInstallation())?.registrations ?? [];
 }
 export async function uninstall() {
   const registrations = await readInstallState();

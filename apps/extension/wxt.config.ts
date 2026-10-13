@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import { CHROMIUM_KEY, FIREFOX_ID } from "@tabherd/protocol";
 
 export default defineConfig({
   outDir: "dist",
@@ -45,12 +46,14 @@ export default defineConfig({
       ...(manifestVersion === 3 && { host_permissions: ["<all_urls>"] }),
       ...(browser === "firefox" && {
         browser_specific_settings: {
-          gecko: { id: "tabherd@local", data_collection_permissions: { required: ["none"] } },
+          gecko: { id: FIREFOX_ID, data_collection_permissions: { required: ["none"] } },
         },
       }),
       ...(manifestVersion === 3 ? { action: toolbarIcon } : { browser_action: toolbarIcon }),
       ...(browser !== "firefox" && {
         minimum_chrome_version: "116",
+        // Every unpacked install gets the same ID, so setup needs no ID.
+        key: CHROMIUM_KEY,
       }),
     };
   },
