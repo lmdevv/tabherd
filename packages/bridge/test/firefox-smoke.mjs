@@ -166,5 +166,6 @@ try {
     clearTimeout(timer);
   }
   await new Promise((resolve) => fixture.close(resolve));
-  await rm(base, { recursive: true, force: true });
+  // Browser helper processes can outlive the main process for a moment.
+  await rm(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }
