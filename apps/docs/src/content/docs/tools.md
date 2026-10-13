@@ -3,7 +3,7 @@ title: Tools & commands
 description: Six MCP tools, a JSON CLI, and the browser APIs behind them.
 ---
 
-Use `browser_connections` first, then `browser_capabilities` to discover what the connected browser supports. Supply `connectionId` when more than one profile is connected.
+Use `browser_connections` first, then `browser_capabilities` to discover what the connected browser supports. Supply `connectionId` when more than one profile is connected. Capabilities include the `access` mode chosen in the extension popup and omit anything it blocks.
 
 ## MCP
 

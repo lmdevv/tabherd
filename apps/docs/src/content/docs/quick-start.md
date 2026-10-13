@@ -19,7 +19,15 @@ Download the extension zip for your browser from the [latest release](https://gi
 
 **Firefox:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json` from the unzipped `tabherd-VERSION-firefox` folder. Temporary add-ons must be loaded again after restarting Firefox.
 
-Tabherd requests broad browser permissions so your agent can operate tabs, pages, bookmarks, and other browser data. Connect it only to agents you trust.
+Tabherd requests broad browser permissions so your agent can operate tabs, pages, bookmarks, and other browser data. Connect it only to agents you trust, and choose how much it may do in the popup’s **Agent access** setting:
+
+| Mode            | Agents can                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Full access** | Use every browser API and page action (the default).                                                          |
+| **Standard**    | Do everything except read or change cookies, clear browsing data, delete history, or delete downloaded files. |
+| **Read only**   | Inspect tabs, windows, groups, bookmarks, history, and pages (read, wait, screenshot); change nothing.        |
+
+Agents can’t change the mode; blocked calls return an error that asks them to check with you. The popup also lists the agent’s recent actions.
 
 ## 3. Register the local bridge
 

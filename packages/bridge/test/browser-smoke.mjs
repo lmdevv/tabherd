@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,6 +84,7 @@ try {
       "--no-first-run",
       "--no-default-browser-check",
       `--user-data-dir=${profile}`,
+      "--remote-debugging-port=0",
       `--disable-extensions-except=${extension}`,
       `--load-extension=${extension}`,
       "about:blank",
@@ -107,6 +108,64 @@ try {
   assert.equal(connections[0].extensionId, extensionId);
   const report = await cli(["doctor"]).catch((error) => JSON.parse(error.stdout));
   assert.ok(report.ok, JSON.stringify(report));
+  // Drive the real popup over the DevTools protocol, as a user would.
+  const [port, path] = (await readFile(join(profile, "DevToolsActivePort"), "utf8")).split("\n");
+  const devtools = new WebSocket(`ws://127.0.0.1:${port}${path}`);
+  await once(devtools, "open");
+  let nextId = 0;
+  const cdp = (method, params = {}, sessionId) =>
+    new Promise((resolve, reject) => {
+      const id = ++nextId;
+      const onMessage = ({ data }) => {
+        const message = JSON.parse(data);
+        if (message.id !== id) return;
+        devtools.removeEventListener("message", onMessage);
+        if (message.error) reject(new Error(message.error.message));
+        else resolve(message.result);
+      };
+      devtools.addEventListener("message", onMessage);
+      devtools.send(JSON.stringify({ id, method, params, sessionId }));
+    });
+  const { targetId } = await cdp("Target.createTarget", {
+    url: `chrome-extension://${extensionId}/popup.html`,
+  });
+  const { sessionId } = await cdp("Target.attachToTarget", { targetId, flatten: true });
+  await cdp(
+    "Emulation.setDeviceMetricsOverride",
+    { width: 340, height: 720, deviceScaleFactor: 2, mobile: false },
+    sessionId,
+  );
+  const popup = async (expression) =>
+    (
+      await cdp(
+        "Runtime.evaluate",
+        { expression, awaitPromise: true, returnByValue: true },
+        sessionId,
+      )
+    ).result.value;
+  const popupShot = async (name) => {
+    if (!process.env.TABHERD_SMOKE_SCREENSHOTS) return;
+    const { data } = await cdp("Page.captureScreenshot", { format: "png" }, sessionId);
+    await writeFile(
+      join(process.env.TABHERD_SMOKE_SCREENSHOTS, `${name}.png`),
+      Buffer.from(data, "base64"),
+    );
+  };
+  const choose = (mode) =>
+    popup(
+      `(async () => { const select = document.querySelector("#access"); select.value = ${JSON.stringify(mode)}; select.dispatchEvent(new Event("change")); await new Promise(r => setTimeout(r, 300)); return document.querySelector("#access-hint").textContent; })()`,
+    );
+  for (
+    let i = 0;
+    i < 50 &&
+    (await popup(`document.querySelector("#status")?.textContent`)) !== "Bridge connected";
+    i++
+  )
+    await delay(100);
+  assert.equal(await popup(`document.querySelector("#status").textContent`), "Bridge connected");
+  assert.match(await popup(`document.querySelector("#bridge").textContent`), /^tabherd \d/);
+  assert.equal(await popup(`document.querySelector("#access").value`), "full");
+
   client = new Client({ name: "tabherd-browser-smoke", version: "1" });
   await client.connect(
     new StdioClientTransport({ command: process.execPath, args: [entry, "mcp"], env }),
@@ -128,7 +187,35 @@ try {
     assert.ok(response.isError, JSON.stringify(response));
     return response.content[0].text;
   };
+  const toolError = async (name, input) => {
+    const response = await client.callTool({ name, arguments: input });
+    assert.ok(response.isError, JSON.stringify(response));
+    return response.content[0].text;
+  };
+  assert.match(await choose("read-only"), /not change anything/);
+  const readOnly = (await tool("browser_capabilities")).structuredContent.result;
+  assert.equal(readOnly.access, "read-only");
+  assert.ok(!readOnly.methods.includes("tabs.create"));
+  assert.match(
+    await toolError("browser_call", { method: "tabs.create", args: [{ url }] }),
+    /blocked: the user set Tabherd to Read only/,
+  );
+  assert.ok(
+    Array.isArray(
+      (await tool("browser_call", { method: "tabs.query", args: [{}] })).structuredContent.result,
+    ),
+  );
+  await choose("standard");
+  assert.match(
+    await toolError("browser_call", { method: "cookies.getAll", args: [{}] }),
+    /Standard/,
+  );
+  await popup(`new Promise(r => setTimeout(r, 1100))`);
+  assert.match(await popup(`document.querySelector("#activity").textContent`), /cookies\.getAll/);
+  await popupShot("popup-standard");
+  await choose("full");
   const caps = (await tool("browser_capabilities")).structuredContent.result;
+  assert.equal(caps.access, "full");
   assert.ok(caps.methods.includes("tabs.group"));
   const events = async (input) => (await tool("browser_events", input)).structuredContent.result;
   const { cursor } = await events({});
@@ -263,8 +350,11 @@ try {
   await call("bookmarks.removeTree", [folder.id]);
   await call("tabs.remove", [[a.id, b.id, c.id]]);
   assert.ok(!(await call("tabs.query", [{}])).some((tab) => [a.id, b.id, c.id].includes(tab.id)));
+  await popup(`new Promise(r => setTimeout(r, 1100))`);
+  await popupShot("popup-full");
+  devtools.close();
   console.log(
-    "Real Chromium extension → native host → MCP passed: events, page read/wait/input/click/hover/drag/upload/select/scroll/evaluate/screenshot, groups, windows, tabs, bookmarks, cookies and batch failure behavior.",
+    "Real Chromium extension → native host → MCP passed: popup access modes and activity, events, page read/wait/input/click/hover/drag/upload/select/scroll/evaluate/screenshot, groups, windows, tabs, bookmarks, cookies and batch failure behavior.",
   );
 } finally {
   await client?.close();

@@ -155,3 +155,91 @@ code {
     color: #dda27b;
   }
 }
+.field {
+  display: block;
+  color: #85857b;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 6px;
+}
+select {
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  color: inherit;
+  background: #fff;
+  border: 1px solid #deddd4;
+  border-radius: 6px;
+}
+select:focus-visible {
+  outline: 2px solid #6c8069;
+  outline-offset: 2px;
+}
+#access-hint {
+  margin: 6px 0 4px;
+}
+h2 {
+  color: #85857b;
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin: 0 0 6px;
+}
+section {
+  margin: 0 0 22px;
+}
+ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #ecebe4;
+  font:
+    11px/1.4 ui-monospace,
+    monospace;
+  color: #54544d;
+}
+li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+li time {
+  color: #95958b;
+  flex-shrink: 0;
+}
+li.failed span {
+  color: #9b542f;
+}
+li.failed span::before {
+  content: "✕ ";
+}
+li.empty {
+  color: #95958b;
+  font-family: inherit;
+}
+@media (prefers-color-scheme: dark) {
+  .field,
+  h2 {
+    color: #a4a699;
+  }
+  select {
+    background: #272a24;
+    border-color: #44473c;
+  }
+  li {
+    color: #c5c8b9;
+    border-color: #33362e;
+  }
+  li.failed span {
+    color: #dda27b;
+  }
+}
