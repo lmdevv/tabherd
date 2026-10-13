@@ -113,6 +113,15 @@ test("limits page through events, and eviction or a restart is reported", async 
     log.read(query({ cursor: `${start.split(":")[0]}:99` })),
     /Invalid events cursor/,
   );
+  // A long poll that waits past an eviction still reports it.
+  const waiting = log.read(query({ cursor: start, types: ["tab."], timeoutMs: 2000 }));
+  setTimeout(() => listeners["tabs.onActivated"]({ tabId: 1, windowId: 1 }), 10);
+  const late = await waiting;
+  assert.deepEqual(
+    late.events.map((e) => e.type),
+    ["tab.activated"],
+  );
+  assert.equal(late.dropped, true);
 });
 
 test("long polling wakes on the first matching event and times out empty", async () => {

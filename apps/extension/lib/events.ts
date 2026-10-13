@@ -145,8 +145,12 @@ export function createEventLog(api: BrowserApi, capacity = 500) {
         }
         waiters.add(wake);
       });
-      const result = select(next);
-      return "reset" in first ? { ...result, reset: true } : result;
+      // Missed-event flags describe the caller's cursor, so carry them over.
+      return {
+        ...select(next),
+        ...("reset" in first ? { reset: true } : {}),
+        ...("dropped" in first ? { dropped: true } : {}),
+      };
     },
   };
 }

@@ -164,6 +164,8 @@ async function main() {
         result = await dispatch("events", query);
         break;
       }
+      // Following polls the browser, so it must wait for events between requests.
+      if (query.timeoutMs < 1000) throw new Error("--follow needs --wait of at least 1000 ms");
       // Stream new events, one JSON object per line, until interrupted.
       if (!query.cursor)
         query.cursor = (
