@@ -66,7 +66,7 @@ export async function mcp() {
     "browser_page",
     {
       description:
-        "Read a tab's visible content and interactive elements; click, type, select, scroll, press keys, evaluate JavaScript or screenshot. Inspect with read before interacting. Actions use a CSS selector or click coordinates; scroll x/y are deltas. Chromium supports JavaScript evaluation; Firefox reports limitations. Browser internal pages cannot be controlled.",
+        "Read a tab's visible content and interactive elements; wait for a selector, text, or page load; click, hover, drag, type, select, scroll, press keys, upload files, evaluate JavaScript or screenshot. Inspect with read before interacting and wait after navigation. Actions use a CSS selector or viewport coordinates; scroll x/y are deltas. upload takes local file paths. Check browser_capabilities for browser-specific support. Browser internal pages cannot be controlled.",
       inputSchema: PageRequest,
     },
     async (input) => {

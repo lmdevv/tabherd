@@ -290,6 +290,8 @@ test(
         tabId: 17,
         action: "read",
         maxTextLength: 1000,
+        maxElements: 200,
+        timeoutMs: 10000,
         connectionId: "profile-b",
       });
       const capabilities = JSON.parse(
@@ -380,6 +382,26 @@ test(
         assert.ok(result.error || result.result?.isError, JSON.stringify(result));
         assert.equal(a.calls.length + b.calls.length, before);
       }
+      const upload = (await dispatch("page", {
+        connectionId: "profile-a",
+        tabId: 1,
+        action: "upload",
+        selector: "#file",
+        files: ["package.json"],
+      })) as { input: { files: string[] } };
+      assert.deepEqual(upload.input.files, [join(process.cwd(), "package.json")]);
+      const forwarded = a.calls.length;
+      await assert.rejects(
+        dispatch("page", {
+          connectionId: "profile-a",
+          tabId: 1,
+          action: "upload",
+          selector: "#file",
+          files: ["missing-file.txt"],
+        }),
+        /Upload file not found/,
+      );
+      assert.equal(a.calls.length, forwarded, "a bad path never reaches the browser");
       await close(a.host);
       await close(b.host);
       assert.deepEqual(await discover(), []);

@@ -1,6 +1,7 @@
 import { createConnection } from "node:net";
 import { readdir, readFile, unlink } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { stat } from "node:fs/promises";
 import { z } from "zod";
 import {
   CallRequest,
@@ -8,6 +9,7 @@ import {
   PageRequest,
   Hello,
   errorMessage,
+  type PageInput,
   type BridgeMethod,
 } from "@tabherd/protocol";
 import { type Connection } from "./native-host";
@@ -132,6 +134,17 @@ export async function dispatch(method: BridgeMethod, raw: unknown = {}): Promise
         : method === "page"
           ? PageRequest.parse(raw)
           : z.object({ connectionId: z.string().optional() }).strict().parse(raw);
+  // The browser reads upload files from disk, so give it absolute, existing paths.
+  const files = method === "page" ? (input as PageInput).files : undefined;
+  if (files)
+    (input as PageInput).files = await Promise.all(
+      files.map(async (file) => {
+        const path = resolve(file);
+        const info = await stat(path).catch(() => undefined);
+        if (!info?.isFile()) throw new Error(`Upload file not found: ${path}`);
+        return path;
+      }),
+    );
   const connections = await discover();
   const matching = input.connectionId
     ? connections.filter((c) => c.connectionId === input.connectionId)

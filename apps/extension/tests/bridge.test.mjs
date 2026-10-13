@@ -252,7 +252,9 @@ test("Chromium page click uses measured coordinates and trusted input", async ()
 
 test("Firefox reports script errors and protects visible screenshot semantics", async () => {
   const engine = createEngine({}, false);
-  assert.ok(!(await engine.dispatch("capabilities")).pageActions.includes("evaluate"));
+  const actions = (await engine.dispatch("capabilities")).pageActions;
+  assert.ok(actions.includes("evaluate") && actions.includes("wait"));
+  assert.ok(!actions.includes("drag") && !actions.includes("upload"));
   const controller = createPageController(
     {
       tabs: {
@@ -269,8 +271,12 @@ test("Firefox reports script errors and protects visible screenshot semantics", 
     false,
   );
   await assert.rejects(
-    controller(page({ action: "evaluate", expression: "1" })),
-    /requires Chromium/,
+    controller(page({ action: "drag", selector: "#a", toX: 1, toY: 2 })),
+    /unavailable in Firefox/,
+  );
+  await assert.rejects(
+    controller(page({ action: "upload", selector: "#a", files: ["/f"] })),
+    /unavailable in Firefox/,
   );
   await assert.rejects(controller(page({ action: "screenshot" })), /target tab to be active/);
   await assert.rejects(
@@ -416,4 +422,142 @@ test("a disconnected mutation is not replayed on the new connection", async () =
   await settle();
   assert.equal(performed, 1);
   assert.equal(ports[1].messages.length, 1);
+});
+
+test("Firefox evaluate runs in the page and falls back when CSP forbids eval", async () => {
+  const scripts = [];
+  let blocked = false;
+  const controller = createPageController(
+    {
+      tabs: {
+        async executeScript(tabId, { code }) {
+          assert.equal(tabId, 12);
+          scripts.push(code);
+          if (code.startsWith("window.eval(")) {
+            if (blocked) throw new Error("call to eval() blocked by CSP");
+            // Simulate the page: evaluate the wrapper and its JSON serialization.
+            const pageCode = JSON.parse(code.slice("window.eval(".length, code.indexOf(").then(")));
+            // oxlint-disable-next-line no-eval -- stands in for the page's own eval
+            return [String(await (0, eval)(pageCode))];
+          }
+          return [{ isolated: code }];
+        },
+      },
+    },
+    false,
+  );
+  assert.deepEqual(await controller(page({ action: "evaluate", expression: "({ a: [1, 2] })" })), {
+    a: [1, 2],
+  });
+  assert.equal(await controller(page({ action: "evaluate", expression: "undefined" })), null);
+  assert.equal(await controller(page({ action: "evaluate", expression: "Promise.resolve(5)" })), 5);
+  await assert.rejects(
+    controller(page({ action: "evaluate", expression: "throw new Error('page failure')" })),
+    /page failure/,
+  );
+  blocked = true;
+  assert.deepEqual(await controller(page({ action: "evaluate", expression: "document.title" })), {
+    isolated: "document.title",
+  });
+  assert.equal(scripts.at(-1), "document.title");
+});
+
+test("wait polls through navigation errors and reports what timed out", async () => {
+  let checks = 0;
+  const controller = createPageController(
+    {
+      tabs: {
+        async get() {
+          return { status: ++checks < 3 ? "loading" : "complete" };
+        },
+      },
+      scripting: {
+        async executeScript({ args: [input] }) {
+          if (input.selector === "#flaky" && checks++ === 0)
+            throw new Error("Frame with ID 0 was removed.");
+          return [{ frameId: 0, result: { found: input.selector === "#flaky" } }];
+        },
+      },
+    },
+    true,
+  );
+  assert.ok((await controller(page({ action: "wait" }))).ok, "waits for tab load");
+  assert.equal(checks, 3);
+  checks = 0;
+  assert.ok((await controller(page({ action: "wait", selector: "#flaky" }))).ok);
+  await assert.rejects(
+    controller(page({ action: "wait", selector: "#never", timeoutMs: 250 })),
+    /Timed out after 250 ms waiting for selector #never/,
+  );
+  await assert.rejects(
+    controller(page({ action: "wait", text: "Done", gone: true, timeoutMs: 0 })),
+    /waiting for removal of text "Done"/,
+  );
+});
+
+test("Chromium drag keeps the measured source and upload targets the file input", async () => {
+  const commands = [],
+    modes = [];
+  const controller = createPageController(
+    {
+      scripting: {
+        async executeScript({ args: [input, mode] }) {
+          modes.push(mode);
+          return [
+            { frameId: 0, result: input.selector === "#from" ? { x: 0, y: 0 } : { x: 100, y: 50 } },
+          ];
+        },
+      },
+      debugger: {
+        async attach() {},
+        async detach() {},
+        async sendCommand(_target, method, params) {
+          commands.push({ method, params });
+          if (method === "Runtime.evaluate")
+            return params.expression.includes("#text")
+              ? { result: { value: "not-file" } }
+              : { result: { objectId: "file-input" } };
+          return {};
+        },
+      },
+    },
+    true,
+  );
+  const drag = await controller(page({ action: "drag", selector: "#from", toSelector: "#to" }));
+  assert.deepEqual(
+    [drag.from, drag.to],
+    [
+      { x: 0, y: 0 },
+      { x: 100, y: 50 },
+    ],
+  );
+  assert.deepEqual(modes, ["measure", "locate"], "the target is located without scrolling");
+  const types = commands.map((command) => command.params.type);
+  assert.deepEqual(
+    [types[0], types[1], types.at(-1)],
+    ["mouseMoved", "mousePressed", "mouseReleased"],
+  );
+  assert.deepEqual(commands.at(-2).params, {
+    type: "mouseMoved",
+    x: 100,
+    y: 50,
+    button: "left",
+    buttons: 1,
+  });
+  commands.length = 0;
+  assert.deepEqual(
+    await controller(page({ action: "upload", selector: "#file", files: ["/a.txt"] })),
+    {
+      ok: true,
+      files: 1,
+    },
+  );
+  assert.deepEqual(commands.at(-1), {
+    method: "DOM.setFileInputFiles",
+    params: { files: ["/a.txt"], objectId: "file-input" },
+  });
+  await assert.rejects(
+    controller(page({ action: "upload", selector: "#text", files: ["/a.txt"] })),
+    /input type=file/,
+  );
 });

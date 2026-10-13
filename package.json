@@ -17,7 +17,8 @@
     "build:firefox": "pnpm --filter extension build:firefox",
     "tabherd": "node packages/bridge/dist/index.js",
     "format": "oxfmt --write",
-    "test:browser": "pnpm --filter tabherd build && pnpm --filter extension build && node packages/bridge/test/browser-smoke.mjs"
+    "test:browser": "pnpm --filter tabherd build && pnpm --filter extension build && node packages/bridge/test/browser-smoke.mjs",
+    "test:firefox": "pnpm --filter tabherd build && pnpm --filter extension build:firefox && node packages/bridge/test/firefox-smoke.mjs"
   },
   "dependencies": {
     "zod": "^4.5.4"

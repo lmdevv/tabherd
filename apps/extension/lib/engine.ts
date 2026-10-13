@@ -44,26 +44,32 @@ export function createEngine(api: BrowserApi, chromium: boolean) {
           methods: available(),
           pageActions: [
             "read",
+            "wait",
             "click",
+            "hover",
             "type",
             "select",
             "scroll",
             "press",
-            ...(chromium ? ["evaluate"] : []),
+            "evaluate",
             "screenshot",
+            ...(chromium ? ["drag", "upload"] : []),
           ],
           limitations: [
             "Browser internal pages, extension pages, and other protected pages cannot be scripted.",
-            "Page reads return up to 200 links and 200 interactive elements; text is bounded by maxTextLength.",
+            "Page reads return up to maxElements (default 200, max 1000) links and interactive elements; text is bounded by maxTextLength.",
+            "wait polls every 200 ms for a visible selector, page text, or (with neither) tab load, up to timeoutMs (max 45000).",
             ...(chromium
               ? [
                   "Page control attaches the debugger briefly. Close DevTools for the target tab if attachment is refused.",
-                  "Trusted input and evaluate target the main frame; read, select, and scroll accept frameId.",
+                  "Trusted input, evaluate, and upload target the main frame; read, wait, select, and scroll accept frameId.",
+                  "upload takes absolute local file paths; the CLI and MCP server resolve relative paths.",
                   "Select uses DOM change events; sites requiring trusted selection events may need keyboard input instead.",
                 ]
               : [
                   "Firefox uses DOM events for page actions; these events are untrusted and some sites ignore them.",
-                  "Firefox does not support evaluate. Screenshots require the target tab to be visible and active.",
+                  "Firefox evaluate runs in the page. If the page CSP blocks eval, it runs in an isolated context that shares the DOM but not page globals. drag and upload are unavailable.",
+                  "Firefox screenshots require the target tab to be visible and active.",
                 ]),
             "Large results are rejected; request narrower ranges or smaller page reads.",
           ],

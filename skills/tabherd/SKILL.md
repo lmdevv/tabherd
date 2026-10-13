@@ -13,7 +13,7 @@ Group tabs within a window using `tabs.group` with `[{tabIds:[12,13]}]`; use the
 
 `browser_batch` executes independent calls sequentially; it stops after an error unless `continueOnError` is set. Calls already completed remain applied. Split dependent calls when the next call needs a returned ID. After a timeout or lost connection, inspect browser state before retrying: Tabherd doesn't replay mutations automatically. `sessions.restore` can recover recently closed tabs when the browser still has them; bookmarks/history deletion has no Tabherd undo.
 
-Page actions are `read`, `click`, `type`, `select`, `scroll`, `press`, `evaluate`, and `screenshot`. Inspect elements before acting; use the returned CSS selector. `type` takes `selector` and `text`, `select` takes `selector` and `value`, `press` takes `key`, `evaluate` takes `expression`. Browser capabilities describe Firefox limitations. Protected browser pages cannot be scripted.
+Page actions are `read`, `wait`, `click`, `hover`, `drag`, `type`, `select`, `scroll`, `press`, `upload`, `evaluate`, and `screenshot`. Inspect elements before acting; use the returned CSS selector. `type` takes `selector` and `text`, `select` takes `selector` and `value`, `press` takes `key`, `evaluate` takes `expression`, `upload` takes `selector` and local `files`, `drag` takes a source plus `toSelector` or `toX`/`toY`. After navigating, call `wait` with no selector until the tab loads; use `wait` with `selector` or `text` for content that appears later instead of sleeping. Browser capabilities describe Firefox limitations. Protected browser pages cannot be scripted.
 
 CLI equivalents (`npm install -g tabherd` provides the `tabherd` command):
 
