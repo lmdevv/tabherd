@@ -13,6 +13,7 @@ import {
 } from "@tabherd/protocol";
 import { FrameDecoder, LineDecoder, encodeFrame, line } from "./framing";
 import { prepareState, socketAddress } from "./paths";
+import packageJson from "../package.json" with { type: "json" };
 
 export interface Connection extends HelloInput {
   socket: string;
@@ -119,6 +120,8 @@ export async function nativeHost() {
       };
       await writeFile(descriptor, JSON.stringify(connection), { mode: 0o600, flag: "wx" });
       clearTimeout(helloTimeout);
+      // Older extensions ignore this; newer ones show the bridge version.
+      process.stdout.write(encodeFrame({ type: "welcome", version: packageJson.version }));
       return;
     }
     const response = WireResponse.parse(raw),

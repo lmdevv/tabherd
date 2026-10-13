@@ -2,6 +2,10 @@ import { z } from "zod";
 
 export const HOST_NAME = "com.tabherd.bridge";
 export const FIREFOX_ID = "tabherd@local";
+// Public half of the key that pins the Chromium extension ID for unpacked installs.
+export const CHROMIUM_KEY =
+  "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsy4obGtzcbuQNkKr86cpqx4JSvIymSWwzX2E2vzIfiRqu+azMRFMh6tH9PTkmgihTQVaCzV6vdOzDEuMnh6AB5dh1mch1eEmE4UChNlyApLDJdrvB4zaWKTE3/64pDvWSH0trafVS++bHX4oeRtlwnUuLOAW+aBc6q5i00qVQBWRBGifQc7YiLORpB7i1d/IhWdB38dJjxjB3jkaMVhiagPGEjw9HFN2I9ozhvdmdrp2TqlGDf84Hio8a/HD4ve2tiUunVbEeCZ49V0G8jTyLfAQdVzct1Hx8nh8zAulgVlcNia8SUnPCQKRI8j7J9ys+tnynaeRhrFohH21fW3FJQIDAQAB";
+export const CHROMIUM_ID = "hepgdbeccdmbongocnnamapillglcbgk";
 export const PROTOCOL_VERSION = 1;
 export const MAX_MESSAGE_BYTES = 900_000;
 export const errorMessage = (error: unknown) =>

@@ -2,14 +2,16 @@ import { parseArgs } from "node:util";
 import { errorMessage } from "@tabherd/protocol";
 import { connections, dispatch } from "./client";
 import { nativeHost } from "./native-host";
-import { install, uninstall, type BrowserName } from "./install";
+import { homedir } from "node:os";
+import { BROWSERS, detectBrowsers, install, uninstall, type BrowserName } from "./install";
+import { doctor } from "./doctor";
 import { mcp } from "./mcp";
 import packageJson from "../package.json" with { type: "json" };
 
 const help = `Tabherd — your browser, connected to your agent.
 
-  tabherd setup --browser chrome --extension-id ID
-  tabherd setup --browser firefox
+  tabherd setup [--browser NAME]... [--extension-id ID]...
+  tabherd doctor
   tabherd status
   tabherd capabilities [--connection ID]
   tabherd call METHOD '[ARG,...]' [--connection ID]
@@ -19,7 +21,9 @@ const help = `Tabherd — your browser, connected to your agent.
   tabherd uninstall
   tabherd --version
 
-Browsers: chrome, chromium, edge, brave, firefox.
+Setup registers every installed browser unless --browser is given.
+Browsers: chrome, chromium, edge, brave, firefox. The Tabherd release extension
+ID is always allowed; add --extension-id for other builds of the extension.
 Use --manifest-dir DIR for a custom browser native-host manifest location.
 Calls and batches take positional JSON arguments. Changes are immediate.
 `;
@@ -39,8 +43,8 @@ async function main() {
     args: process.argv.slice(3),
     allowPositionals: true,
     options: {
-      browser: { type: "string" },
-      "extension-id": { type: "string" },
+      browser: { type: "string", multiple: true },
+      "extension-id": { type: "string", multiple: true },
       "manifest-dir": { type: "string" },
       connection: { type: "string" },
       "continue-on-error": { type: "boolean" },
@@ -58,6 +62,7 @@ async function main() {
   const allowedOptions: Record<string, string[]> = {
     setup: ["browser", "extension-id", "manifest-dir"],
     uninstall: [],
+    doctor: [],
     status: [],
     capabilities: ["connection"],
     call: ["connection"],
@@ -73,14 +78,29 @@ async function main() {
   switch (command) {
     case "setup": {
       expect(0);
-      const browser = values.browser;
-      if (!browser || !["chrome", "chromium", "edge", "brave", "firefox"].includes(browser))
-        throw new Error("Select --browser chrome|chromium|edge|brave|firefox");
+      const browsers = (values.browser ?? []).flatMap((value) => value.split(","));
+      const unknown = browsers.find((b) => !(BROWSERS as readonly string[]).includes(b));
+      if (unknown !== undefined)
+        throw new Error(`Unknown browser ${unknown}. Use ${BROWSERS.join(", ")}.`);
+      if (!browsers.length && values["manifest-dir"])
+        throw new Error("--manifest-dir requires --browser, which sets the manifest format.");
+      if (!browsers.length) {
+        browsers.push(...detectBrowsers(process.platform, homedir()));
+        if (!browsers.length)
+          throw new Error(`No supported browser found. Use --browser ${BROWSERS.join("|")}.`);
+      }
       result = await install({
-        browsers: [browser as BrowserName],
-        extensionId: values["extension-id"],
+        browsers: [...new Set(browsers)] as BrowserName[],
+        extensionIds: values["extension-id"],
         manifestDirectory: values["manifest-dir"],
       });
+      break;
+    }
+    case "doctor": {
+      expect(0);
+      const report = await doctor();
+      if (!report.ok) process.exitCode = 1;
+      result = report;
       break;
     }
     case "uninstall":

@@ -359,12 +359,16 @@ test("native bridge sends a persistent profile hello, dispatches, and reconnects
   });
   await settle();
   assert.deepEqual(first.messages[1], { type: "response", id: "one", result: [{ id: 1 }] });
+  first.request({ type: "welcome", version: "9.9.9" });
+  assert.equal(bridge.getStatus().hostVersion, "9.9.9");
+  assert.equal(first.messages.length, 2, "welcome is not answered");
   first.disconnect();
   assert.equal(bridge.getStatus().connected, false);
   assert.equal(alarms.at(-1).name, RETRY_ALARM);
   await bridge.connect();
   assert.equal(ports[1].messages[0].connectionId, first.messages[0].connectionId);
   assert.equal(ports[1].messages.length, 1);
+  assert.equal(bridge.getStatus().hostVersion, "", "a new connection forgets the old version");
 });
 
 test("wire validation and UTF-8 result bounds return actionable errors", async () => {

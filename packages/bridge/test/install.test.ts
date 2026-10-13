@@ -6,8 +6,8 @@ import { mkdtemp, writeFile, readFile, stat, rm, chmod, mkdir, symlink } from "n
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOST_NAME, FIREFOX_ID } from "@tabherd/protocol";
-import { launcherText, registration, type BrowserName } from "../src/install";
+import { HOST_NAME, FIREFOX_ID, CHROMIUM_ID } from "@tabherd/protocol";
+import { detectBrowsers, launcherText, registration, type BrowserName } from "../src/install";
 import { socketAddress } from "../src/paths";
 
 const exec = promisify(execFile);
@@ -56,6 +56,41 @@ test("native host registration targets each supported browser and platform", () 
     );
   });
   assert.throws(() => registration("chrome", "android", "/home", "/state"), /Unsupported/);
+});
+
+test("setup detects installed browsers from their profile directories", () => {
+  const present = (paths: string[]) => (path: string) => paths.includes(path);
+  assert.deepEqual(
+    detectBrowsers(
+      "linux",
+      "/h",
+      {},
+      present([join("/h", ".config", "chromium"), join("/h", ".mozilla")]),
+    ),
+    ["chromium", "firefox"],
+  );
+  assert.deepEqual(
+    detectBrowsers(
+      "darwin",
+      "/U",
+      {},
+      present([join("/U", "Library", "Application Support", "Google", "Chrome")]),
+    ),
+    ["chrome"],
+  );
+  assert.deepEqual(
+    detectBrowsers(
+      "win32",
+      "C:\\u",
+      { LOCALAPPDATA: "L", APPDATA: "R" },
+      present([join("L", "Microsoft", "Edge", "User Data"), join("R", "Mozilla", "Firefox")]),
+    ),
+    ["edge", "firefox"],
+  );
+  assert.deepEqual(
+    detectBrowsers("linux", "/h", {}, () => false),
+    [],
+  );
 });
 
 test(
@@ -167,6 +202,10 @@ test(
       assert.ok(launcher.includes(process.execPath));
       assert.ok(launcher.includes(entry));
       assert.ok(launcher.includes(state));
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
+      assert.deepEqual(JSON.parse(await readFile(chromePath, "utf8")).allowed_origins, [
+        `chrome-extension://${CHROMIUM_ID}/`,
+      ]);
       await cli([
         "setup",
         "--browser",
@@ -177,7 +216,10 @@ test(
         chromeDir,
       ]);
       const chrome = JSON.parse(await readFile(chromePath, "utf8"));
-      assert.deepEqual(chrome.allowed_origins, [`chrome-extension://${"a".repeat(32)}/`]);
+      assert.deepEqual(chrome.allowed_origins, [
+        `chrome-extension://${CHROMIUM_ID}/`,
+        `chrome-extension://${"a".repeat(32)}/`,
+      ]);
       assert.equal(chrome.allowed_extensions, undefined);
       assert.equal((await stat(chromePath)).mode & 0o777, 0o600);
       const installed = JSON.parse(await readFile(join(state, "installation.json"), "utf8"));
@@ -195,6 +237,51 @@ test(
         JSON.parse(await readFile(join(state, "installation.json"), "utf8")).registrations.length,
         2,
       );
+      // A later setup keeps every ID allowed before, so custom builds stay connected.
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
+      assert.deepEqual(JSON.parse(await readFile(chromePath, "utf8")).allowed_origins, [
+        `chrome-extension://${CHROMIUM_ID}/`,
+        `chrome-extension://${"a".repeat(32)}/`,
+        `chrome-extension://${"b".repeat(32)}/`,
+      ]);
+      await assert.rejects(cli(["setup", "--manifest-dir", chromeDir]), /requires --browser/);
+      // Doctor checks every stored ID, and setup ignores corrupt stored IDs.
+      const record = join(state, "installation.json");
+      const saved = JSON.parse(await readFile(record, "utf8"));
+      await writeFile(
+        chromePath,
+        JSON.stringify({
+          ...JSON.parse(await readFile(chromePath, "utf8")),
+          allowed_origins: [`chrome-extension://${CHROMIUM_ID}/`],
+        }),
+      );
+      const missing = JSON.parse((await cli(["doctor"]).catch((error) => error)).stdout);
+      assert.match(
+        missing.checks.find((c: any) => c.name === "chrome native host manifest").detail,
+        new RegExp(`lacks extension ID ${"a".repeat(32)}`),
+      );
+      await writeFile(record, JSON.stringify({ ...saved, extensionIds: "corrupt" }));
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
+      assert.deepEqual(JSON.parse(await readFile(chromePath, "utf8")).allowed_origins, [
+        `chrome-extension://${CHROMIUM_ID}/`,
+      ]);
+      await writeFile(record, JSON.stringify(saved));
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
+      const healthy = JSON.parse((await cli(["doctor"]).catch((error) => error)).stdout);
+      assert.equal(healthy.ok, false, "no browser is connected");
+      assert.deepEqual(
+        healthy.checks.filter((check: { ok: boolean }) => !check.ok).map((c: any) => c.name),
+        ["browser connection"],
+      );
+      await writeFile(chromePath, JSON.stringify({ name: HOST_NAME, path: "/elsewhere" }));
+      const broken = JSON.parse((await cli(["doctor"]).catch((error) => error)).stdout);
+      const manifestCheck = broken.checks.find(
+        (c: any) => c.name === "chrome native host manifest",
+      );
+      assert.equal(manifestCheck.ok, false);
+      assert.match(manifestCheck.detail, /path is \/elsewhere/);
+      assert.match(manifestCheck.detail, /allowed_origins lacks/);
+      assert.match(manifestCheck.fix, /tabherd setup/);
       const unrelated = join(chromeDir, "unrelated.json");
       await writeFile(unrelated, "keep");
       const removed = JSON.parse((await cli(["uninstall"])).stdout);

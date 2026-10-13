@@ -15,7 +15,7 @@ Download the extension zip for your browser from the [latest release](https://gi
 
 ## 2. Load the extension
 
-**Chrome, Chromium, Edge, or Brave:** open the browser’s extensions page, enable **Developer mode**, choose **Load unpacked**, and select the unzipped `tabherd-VERSION-chrome` folder. Copy Tabherd’s extension ID.
+**Chrome, Chromium, Edge, or Brave:** open the browser’s extensions page, enable **Developer mode**, choose **Load unpacked**, and select the unzipped `tabherd-VERSION-chrome` folder.
 
 **Firefox:** open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and select `manifest.json` from the unzipped `tabherd-VERSION-firefox` folder. Temporary add-ons must be loaded again after restarting Firefox.
 
@@ -24,23 +24,21 @@ Tabherd requests broad browser permissions so your agent can operate tabs, pages
 ## 3. Register the local bridge
 
 ```sh
-tabherd setup --browser chrome --extension-id YOUR_EXTENSION_ID
+tabherd setup
 ```
 
-Use `chromium`, `edge`, or `brave` for those browsers. Firefox uses a fixed extension ID:
-
-```sh
-tabherd setup --browser firefox
-```
+Setup registers every supported browser it finds: Chrome, Chromium, Edge, Brave, and Firefox. Choose one with `--browser chrome`. The extension has the same ID wherever it’s loaded, so you don’t need to copy it.
 
 Reload the extension, open its popup, and connect if needed. The browser starts the native host; no background server command is required. Run `setup` again after upgrading Node.js or moving your global npm packages.
 
 Check the connection:
 
 ```sh
-tabherd status
+tabherd doctor
 tabherd call tabs.query '[{}]'
 ```
+
+`doctor` checks the installation, each browser registration, and the live connection, and says how to fix anything that fails.
 
 ## 4. Add MCP to your agent
 
@@ -63,6 +61,6 @@ To build from source instead, see the [repository README](https://github.com/lmd
 
 ## If it isn’t connected
 
-Check that the extension is loaded, the popup is connected, and `setup` used the correct browser and extension ID. With several browser profiles, use the connection ID from `status` or `browser_connections`.
+Run `tabherd doctor` and follow the fix for each failed check. Check that the extension is loaded and its popup shows **Bridge connected**. If you built the extension yourself with a different ID, run `tabherd setup --extension-id YOUR_ID`. With several browser profiles, use the connection ID from `status` or `browser_connections`.
 
 Remove all Tabherd native host registrations with `tabherd uninstall`, then remove the extension from your browser.

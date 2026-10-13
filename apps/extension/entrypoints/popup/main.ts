@@ -7,9 +7,9 @@ app.innerHTML = `
   <main><div class="status"><span id="dot"></span><h1 id="status">Connecting</h1></div>
   <p class="intro">Your browser, connected to your agent.</p>
   <p id="error" role="status" hidden></p>
-  <dl><dt>Profile</dt><dd id="profile">—</dd><dt>Extension ID</dt><dd id="extension">—</dd></dl>
+  <dl><dt>Profile</dt><dd id="profile">—</dd><dt>Bridge</dt><dd id="bridge">—</dd><dt>Extension ID</dt><dd id="extension">—</dd></dl>
   <button id="reconnect" type="button">Reconnect bridge <span aria-hidden="true">↗</span></button>
-  <p class="hint">Run <code>tabherd setup</code> to install the local bridge.</p></main>
+  <p class="hint">Not connecting? Run <code>tabherd doctor</code>.</p></main>
 `;
 const button = document.querySelector<HTMLButtonElement>("#reconnect")!;
 function show(status: {
@@ -17,6 +17,7 @@ function show(status: {
   error?: string;
   connectionId?: string;
   extensionId?: string;
+  hostVersion?: string;
 }) {
   document.querySelector("#status")!.textContent = status.connected
     ? "Bridge connected"
@@ -26,6 +27,9 @@ function show(status: {
   error.hidden = !status.error;
   error.textContent = status.error || "";
   document.querySelector("#profile")!.textContent = status.connectionId || "—";
+  document.querySelector("#bridge")!.textContent = status.hostVersion
+    ? `tabherd ${status.hostVersion}`
+    : "—";
   document.querySelector("#extension")!.textContent = status.extensionId || browser.runtime.id;
 }
 async function update(type = "tabherd-status") {
