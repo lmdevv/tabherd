@@ -82,6 +82,8 @@ async function main() {
       const unknown = browsers.find((b) => !(BROWSERS as readonly string[]).includes(b));
       if (unknown !== undefined)
         throw new Error(`Unknown browser ${unknown}. Use ${BROWSERS.join(", ")}.`);
+      if (!browsers.length && values["manifest-dir"])
+        throw new Error("--manifest-dir requires --browser, which sets the manifest format.");
       if (!browsers.length) {
         browsers.push(...detectBrowsers(process.platform, homedir()));
         if (!browsers.length)

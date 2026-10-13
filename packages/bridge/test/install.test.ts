@@ -237,6 +237,14 @@ test(
         JSON.parse(await readFile(join(state, "installation.json"), "utf8")).registrations.length,
         2,
       );
+      // A later setup keeps every ID allowed before, so custom builds stay connected.
+      await cli(["setup", "--browser", "chrome", "--manifest-dir", chromeDir]);
+      assert.deepEqual(JSON.parse(await readFile(chromePath, "utf8")).allowed_origins, [
+        `chrome-extension://${CHROMIUM_ID}/`,
+        `chrome-extension://${"a".repeat(32)}/`,
+        `chrome-extension://${"b".repeat(32)}/`,
+      ]);
+      await assert.rejects(cli(["setup", "--manifest-dir", chromeDir]), /requires --browser/);
       const healthy = JSON.parse((await cli(["doctor"]).catch((error) => error)).stdout);
       assert.equal(healthy.ok, false, "no browser is connected");
       assert.deepEqual(

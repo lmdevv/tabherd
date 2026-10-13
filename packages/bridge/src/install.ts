@@ -129,7 +129,14 @@ export async function install(options: InstallOptions) {
     throw new Error(
       `Invalid --extension-id ${JSON.stringify(invalid)}: use the 32-letter ID from chrome://extensions`,
     );
-  const extensionIds = [...new Set([CHROMIUM_ID, ...(options.extensionIds ?? [])])];
+  // Keep IDs allowed by earlier setups, so re-running setup never disconnects a custom build.
+  const extensionIds = [
+    ...new Set([
+      CHROMIUM_ID,
+      ...((await readInstallation())?.extensionIds ?? []),
+      ...(options.extensionIds ?? []),
+    ]),
+  ];
   if (options.manifestDirectory && options.browsers.length !== 1)
     throw new Error("--manifest-dir requires exactly one browser");
   const state = await prepareState();
@@ -177,6 +184,7 @@ export async function install(options: InstallOptions) {
         node,
         entry,
         launcher,
+        extensionIds,
         registrations: [...new Map(merged.map((r) => [r.browser, r])).values()],
       }),
       { mode: 0o600 },
@@ -195,6 +203,7 @@ export interface InstallState {
   node: string;
   entry: string;
   launcher: string;
+  extensionIds?: string[];
   registrations: Registration[];
 }
 export async function readInstallation(): Promise<InstallState | undefined> {
