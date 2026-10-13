@@ -68,6 +68,32 @@ export function registration(
     return { browser, manifestPath: join(home, dirs.linux, `${HOST_NAME}.json`) };
   throw new Error(`Unsupported platform: ${platform}`);
 }
+// Machine-wide locations, used by package managers such as the NixOS module.
+export const SYSTEM_MANIFEST_DIRECTORIES: Partial<Record<string, [BrowserName, string][]>> = {
+  linux: [
+    ["chrome", "/etc/opt/chrome/native-messaging-hosts"],
+    ["chromium", "/etc/chromium/native-messaging-hosts"],
+    ["edge", "/etc/opt/edge/native-messaging-hosts"],
+    ["brave", "/etc/opt/brave/native-messaging-hosts"],
+    ["firefox", "/usr/lib/mozilla/native-messaging-hosts"],
+    ["firefox", "/usr/lib64/mozilla/native-messaging-hosts"],
+  ],
+};
+/** Manifests that exist on this machine, whoever wrote them. */
+export function findManifests(
+  platform: string,
+  home: string,
+  exists: (path: string) => boolean = existsSync,
+): Registration[] {
+  if (platform === "win32") return [];
+  return [
+    ...BROWSERS.map((browser) => registration(browser, platform, home, "")),
+    ...(SYSTEM_MANIFEST_DIRECTORIES[platform] ?? []).map(([browser, directory]) => ({
+      browser,
+      manifestPath: join(directory, `${HOST_NAME}.json`),
+    })),
+  ].filter((reg) => exists(reg.manifestPath));
+}
 // Profile directories show which browsers this user has run.
 export function detectBrowsers(
   platform: string,
@@ -190,14 +216,9 @@ export async function install(options: InstallOptions) {
       { mode: 0o600 },
     );
   }
+  const warning = setupWarning(entry);
   return {
-    // The npx cache is temporary; a registration pointing into it breaks once it is cleaned.
-    ...(entry.includes(`${sep}_npx${sep}`)
-      ? {
-          warning:
-            "Setup ran from the temporary npx cache. Install globally with npm install -g tabherd, then run tabherd setup again.",
-        }
-      : {}),
+    ...(warning ? { warning } : {}),
     installed: registrations,
     launcher,
     node,
@@ -205,6 +226,14 @@ export async function install(options: InstallOptions) {
     extensionIds: options.browsers.some((b) => b !== "firefox") ? extensionIds : undefined,
     next: "Reload the extension (or restart the browser), then run tabherd doctor",
   };
+}
+export function setupWarning(entry: string) {
+  // The npx cache is temporary; a registration pointing into it breaks once it is cleaned.
+  if (entry.includes(`${sep}_npx${sep}`))
+    return "Setup ran from the temporary npx cache. Install globally with npm install -g tabherd, then run tabherd setup again.";
+  // A store path disappears after an upgrade and garbage collection.
+  if (entry.startsWith("/nix/store/"))
+    return "Setup registered a Nix store path, which breaks once this version is garbage-collected. Use the NixOS or Home Manager module instead, or run tabherd setup again after every upgrade.";
 }
 export const isExtensionId = (id: unknown): id is string =>
   typeof id === "string" && /^[a-p]{32}$/.test(id);

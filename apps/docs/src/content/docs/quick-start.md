@@ -17,6 +17,8 @@ If that fails because npm’s global folder is read-only (Nix, or a system-wide 
 npm install -g --prefix ~/.local tabherd
 ```
 
+On Nix or NixOS, use the [flake and its modules](../nix/) instead; they register the browsers for you.
+
 Download the extension zip for your browser from the [latest release](https://github.com/lmdevv/tabherd/releases/latest) and unzip it.
 
 ## 2. Load the extension

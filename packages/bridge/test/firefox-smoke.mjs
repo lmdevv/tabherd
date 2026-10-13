@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,13 @@ const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 // TABHERD_ENTRY tests an installed package, e.g. $(npm root -g)/tabherd/dist/index.js.
 const entry = process.env.TABHERD_ENTRY ?? join(root, "packages/bridge/dist/index.js");
+// TABHERD_CLI runs a packaged executable instead, e.g. the Nix build's bin/tabherd.
+const [command, ...commandArgs] = process.env.TABHERD_CLI
+  ? [process.env.TABHERD_CLI]
+  : [process.execPath, entry];
+// TABHERD_NATIVE_MANIFEST installs a packaged manifest instead of running tabherd setup, or with
+// the value "browser" registers nothing: the browser ships it, like nixpkgs' wrapped Firefox.
+const packagedManifest = process.env.TABHERD_NATIVE_MANIFEST;
 const extension = join(root, "apps/extension/dist/firefox-mv2");
 const webExt = join(root, "apps/extension/node_modules/.bin/web-ext");
 const base = await mkdtemp(join(tmpdir(), "tabherd-firefox-smoke-"));
@@ -42,9 +49,14 @@ let firefox;
 let logs = "";
 let client;
 const cli = async (args) =>
-  JSON.parse((await exec(process.execPath, [entry, ...args], { env })).stdout);
+  JSON.parse((await exec(command, [...commandArgs, ...args], { env })).stdout);
 try {
-  await cli(["setup", "--browser", "firefox"]);
+  if (!packagedManifest) await cli(["setup", "--browser", "firefox"]);
+  else if (packagedManifest !== "browser") {
+    const directory = join(env.HOME, ".mozilla/native-messaging-hosts");
+    await mkdir(directory, { recursive: true });
+    await copyFile(packagedManifest, join(directory, "com.tabherd.bridge.json"));
+  }
   firefox = spawn(
     webExt,
     [
@@ -76,9 +88,7 @@ try {
   assert.ok(report.ok, JSON.stringify(report));
 
   client = new Client({ name: "tabherd-firefox-smoke", version: "1" });
-  await client.connect(
-    new StdioClientTransport({ command: process.execPath, args: [entry, "mcp"], env }),
-  );
+  await client.connect(new StdioClientTransport({ command, args: [...commandArgs, "mcp"], env }));
   const tool = async (name, input = {}) => {
     const response = await client.callTool({ name, arguments: input });
     assert.ok(!response.isError, JSON.stringify(response));

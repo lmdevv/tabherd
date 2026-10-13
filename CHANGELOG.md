@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A Nix flake: `nix run github:lmdevv/tabherd`, `overlays.default`, and NixOS and Home Manager modules (`programs.tabherd`) that register the native host declaratively.
+- `tabherd doctor` accepts native host manifests installed outside `tabherd setup`, such as by those modules or nixpkgs' Firefox wrapper, and names the manifest in each failure.
+- `tabherd setup` warns when it registers a Nix store path.
+
 ## 0.1.0
 
 The first published release of the `tabherd` npm package and extension zips.

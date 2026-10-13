@@ -22,6 +22,7 @@ export default defineConfig({
         { label: "Overview", slug: "" },
         { label: "Quick start", slug: "quick-start" },
         { label: "Tools & commands", slug: "tools" },
+        { label: "Nix and NixOS", slug: "nix" },
         { label: "Workflows", slug: "workflows" },
       ],
     }),

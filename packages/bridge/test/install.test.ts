@@ -17,7 +17,14 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HOST_NAME, FIREFOX_ID, CHROMIUM_ID } from "@tabherd/protocol";
-import { detectBrowsers, launcherText, registration, type BrowserName } from "../src/install";
+import {
+  detectBrowsers,
+  findManifests,
+  launcherText,
+  registration,
+  setupWarning,
+  type BrowserName,
+} from "../src/install";
 import { socketAddress } from "../src/paths";
 
 const exec = promisify(execFile);
@@ -357,6 +364,79 @@ test(
         );
       assert.match((await run(join(pkg, "dist", "index.js"))).warning, /npx cache/);
       assert.equal((await run(entry)).warning, undefined);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test("manifest discovery covers per-user and machine-wide locations", () => {
+  const present = new Set([
+    `/home/example/.config/chromium/NativeMessagingHosts/${HOST_NAME}.json`,
+    `/etc/opt/chrome/native-messaging-hosts/${HOST_NAME}.json`,
+    `/usr/lib/mozilla/native-messaging-hosts/${HOST_NAME}.json`,
+  ]);
+  assert.deepEqual(
+    findManifests("linux", "/home/example", (path) => present.has(path)).map((r) => [
+      r.browser,
+      r.manifestPath,
+    ]),
+    [...present].map((path, i) => [["chromium", "chrome", "firefox"][i], path]),
+  );
+  assert.deepEqual(
+    findManifests("win32", "C:\\Users\\example", () => true),
+    [],
+  );
+});
+
+test("setup warns about registrations that a cache or garbage collection removes", () => {
+  assert.match(setupWarning("/home/u/.npm/_npx/abc/node_modules/tabherd/dist/index.js")!, /npx/);
+  assert.match(setupWarning("/nix/store/abc-tabherd-0.1.0/lib/tabherd/dist/index.js")!, /Nix/);
+  assert.equal(setupWarning("/usr/lib/node_modules/tabherd/dist/index.js"), undefined);
+});
+
+test(
+  "doctor accepts native host manifests installed outside tabherd setup",
+  { skip: process.platform === "win32", timeout: 20000 },
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-managed-"));
+    try {
+      const home = join(dir, "home");
+      const manifestPath = join(home, ".config/chromium/NativeMessagingHosts", `${HOST_NAME}.json`);
+      const launcher = join(dir, "native-host");
+      await mkdir(dirname(manifestPath), { recursive: true });
+      await writeFile(launcher, "#!/bin/sh\n");
+      await chmod(launcher, 0o755);
+      const manifest = {
+        name: HOST_NAME,
+        path: launcher,
+        type: "stdio",
+        allowed_origins: [`chrome-extension://${CHROMIUM_ID}/`],
+      };
+      const doctor = async () => {
+        const env = { ...process.env, HOME: home, TABHERD_STATE_DIR: join(dir, "state") };
+        const result = await exec(process.execPath, [entry, "doctor"], { env }).catch((e) => e);
+        const report = JSON.parse(result.stdout);
+        return {
+          record: report.checks.find((c: any) => c.name === "installation record"),
+          manifest: report.checks.find((c: any) => c.detail.includes(manifestPath)),
+        };
+      };
+      const none = await doctor();
+      assert.equal(none.manifest, undefined);
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      const managed = await doctor();
+      assert.equal(managed.record.ok, true);
+      assert.equal(managed.manifest.ok, true);
+      await writeFile(
+        manifestPath,
+        JSON.stringify({ ...manifest, path: join(dir, "gone"), allowed_origins: [] }),
+      );
+      const broken = await doctor();
+      assert.equal(broken.manifest.ok, false);
+      assert.match(broken.manifest.detail, /not an executable file/);
+      assert.match(broken.manifest.detail, /lacks extension ID/);
+      assert.match(broken.manifest.fix, /Nix/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

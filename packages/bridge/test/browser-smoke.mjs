@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,12 @@ const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 // TABHERD_ENTRY tests an installed package, e.g. $(npm root -g)/tabherd/dist/index.js.
 const entry = process.env.TABHERD_ENTRY ?? join(root, "packages/bridge/dist/index.js");
+// TABHERD_CLI runs a packaged executable instead, e.g. the Nix build's bin/tabherd.
+const [command, ...commandArgs] = process.env.TABHERD_CLI
+  ? [process.env.TABHERD_CLI]
+  : [process.execPath, entry];
+// TABHERD_NATIVE_MANIFEST installs a packaged manifest instead of running tabherd setup.
+const packagedManifest = process.env.TABHERD_NATIVE_MANIFEST;
 const extension = join(root, "apps/extension/dist/chrome-mv3");
 // The manifest key pins this ID wherever the extension is loaded from.
 const extensionId = "hepgdbeccdmbongocnnamapillglcbgk";
@@ -27,6 +33,8 @@ const env = {
   ...process.env,
   TABHERD_STATE_DIR: join(base, "state"),
   XDG_CONFIG_HOME: join(base, "xdg"),
+  // Doctor finds a packaged manifest in the per-user location, so keep it out of the real home.
+  ...(packagedManifest ? { HOME: join(base, "home") } : {}),
 };
 const fixture = createServer((_request, response) => {
   response.setHeader("content-type", "text/html");
@@ -65,15 +73,19 @@ let chromeError;
 let logs = "";
 let client;
 const cli = async (args) => {
-  const result = await exec(process.execPath, [entry, ...args], { env });
+  const result = await exec(command, [...commandArgs, ...args], { env });
   return JSON.parse(result.stdout);
 };
 try {
   for (const directory of [
     join(profile, "NativeMessagingHosts"),
     join(env.XDG_CONFIG_HOME, "chromium/NativeMessagingHosts"),
+    ...(packagedManifest ? [join(env.HOME, ".config/chromium/NativeMessagingHosts")] : []),
   ]) {
-    await cli(["setup", "--browser", "chromium", "--manifest-dir", directory]);
+    if (packagedManifest) {
+      await mkdir(directory, { recursive: true });
+      await copyFile(packagedManifest, join(directory, "com.tabherd.bridge.json"));
+    } else await cli(["setup", "--browser", "chromium", "--manifest-dir", directory]);
   }
   chrome = spawn(
     process.env.TABHERD_CHROMIUM ?? "chromium",
@@ -168,9 +180,7 @@ try {
   assert.equal(await popup(`document.querySelector("#access").value`), "full");
 
   client = new Client({ name: "tabherd-browser-smoke", version: "1" });
-  await client.connect(
-    new StdioClientTransport({ command: process.execPath, args: [entry, "mcp"], env }),
-  );
+  await client.connect(new StdioClientTransport({ command, args: [...commandArgs, "mcp"], env }));
   const tool = async (name, input = {}) => {
     const response = await client.callTool({ name, arguments: input });
     assert.ok(!response.isError, JSON.stringify(response));
