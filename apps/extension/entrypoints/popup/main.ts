@@ -12,7 +12,7 @@ import type { Activity } from "../../lib/engine";
 const ACCESS_HINTS: Record<AccessMode, string> = {
   full: "Agents can use every browser API and page action.",
   standard:
-    "Blocks cookies, clearing browsing data, deleting history, and deleting downloaded files.",
+    "Blocks cookies, running JavaScript in pages, clearing browsing data, and deleting history or downloaded files.",
   "read-only": "Agents can inspect tabs, bookmarks, history, and pages, but not change anything.",
 };
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -61,8 +61,8 @@ const ago = (time: number) => {
   return seconds < 60
     ? `${seconds}s`
     : seconds < 3600
-      ? `${Math.round(seconds / 60)}m`
-      : `${Math.round(seconds / 3600)}h`;
+      ? `${Math.floor(seconds / 60)}m`
+      : `${Math.floor(seconds / 3600)}h`;
 };
 function showActivity(items: Activity[]) {
   const list = document.querySelector<HTMLOListElement>("#activity")!;
@@ -90,10 +90,13 @@ function showActivity(items: Activity[]) {
 async function update(type = "tabherd-status") {
   try {
     show(await browser.runtime.sendMessage({ type }));
-    showActivity((await browser.runtime.sendMessage({ type: "tabherd-activity" })) ?? []);
   } catch (error) {
     show({ connected: false, error: error instanceof Error ? error.message : String(error) });
+    return;
   }
+  showActivity(
+    (await browser.runtime.sendMessage({ type: "tabherd-activity" }).catch(() => [])) ?? [],
+  );
 }
 // The extension stores the mode; agents have no API to change it.
 const stored = await browser.storage.local.get(ACCESS_STORAGE_KEY);

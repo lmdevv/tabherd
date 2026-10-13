@@ -21,11 +21,11 @@ Download the extension zip for your browser from the [latest release](https://gi
 
 Tabherd requests broad browser permissions so your agent can operate tabs, pages, bookmarks, and other browser data. Connect it only to agents you trust, and choose how much it may do in the popup’s **Agent access** setting:
 
-| Mode            | Agents can                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Full access** | Use every browser API and page action (the default).                                                          |
-| **Standard**    | Do everything except read or change cookies, clear browsing data, delete history, or delete downloaded files. |
-| **Read only**   | Inspect tabs, windows, groups, bookmarks, history, and pages (read, wait, screenshot); change nothing.        |
+| Mode            | Agents can                                                                                                                                          |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Full access** | Use every browser API and page action (the default).                                                                                                |
+| **Standard**    | Do everything except read or change cookies, run JavaScript in pages (`evaluate`), clear browsing data, delete history, or delete downloaded files. |
+| **Read only**   | Inspect tabs, windows, groups, bookmarks, history, and pages (read, wait, screenshot); change nothing.                                              |
 
 Agents can’t change the mode; blocked calls return an error that asks them to check with you. The popup also lists the agent’s recent actions.
 

@@ -34,6 +34,9 @@ test("access modes classify every allowlisted method", () => {
     ),
     ["read", "wait", "screenshot"],
   );
+  // Page JavaScript could read document.cookie, so Standard withholds evaluate too.
+  assert.ok(!allowsPageAction("standard", "evaluate"));
+  assert.ok(["click", "type", "upload", "read"].every((a) => allowsPageAction("standard", a)));
 });
 
 function storageApi(initial) {

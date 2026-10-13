@@ -58,7 +58,10 @@ export function allowsMethod(mode: AccessMode, method: string) {
   return true;
 }
 export function allowsPageAction(mode: AccessMode, action: string) {
-  return mode !== "read-only" || READ_PAGE_ACTIONS.has(action);
+  if (mode === "read-only") return READ_PAGE_ACTIONS.has(action);
+  // Page JavaScript can read document.cookie and storage, which Standard withholds.
+  if (mode === "standard") return action !== "evaluate";
+  return true;
 }
 export function blockedError(mode: AccessMode, operation: string) {
   return new Error(

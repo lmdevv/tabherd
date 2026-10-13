@@ -210,6 +210,14 @@ try {
     await toolError("browser_call", { method: "cookies.getAll", args: [{}] }),
     /Standard/,
   );
+  assert.match(
+    await toolError("browser_page", {
+      tabId: 1,
+      action: "evaluate",
+      expression: "document.cookie",
+    }),
+    /page evaluate is blocked/,
+  );
   await popup(`new Promise(r => setTimeout(r, 1100))`);
   assert.match(await popup(`document.querySelector("#activity").textContent`), /cookies\.getAll/);
   await popupShot("popup-standard");
