@@ -17,6 +17,8 @@ npm install -g tabherd
 
 For Firefox, download `tabherd-VERSION-firefox.zip` and temporarily load its `manifest.json` from `about:debugging`.
 
+On Nix, `nix run github:lmdevv/tabherd -- --help` runs the CLI. The NixOS and Home Manager modules (`programs.tabherd.enable = true`) register the browsers declaratively, so you skip `tabherd setup`. See [Nix and NixOS](apps/docs/src/content/docs/nix.md).
+
 Add the bridge to your agent’s stdio MCP configuration:
 
 ```json
@@ -32,7 +34,7 @@ Add the bridge to your agent’s stdio MCP configuration:
 
 The browser starts the native host automatically. No account or separate server. Tabherd grants local control of your real browser profile; use it with agents you trust, and pick **Full access**, **Standard** (no cookies, page JavaScript, or data deletion) or **Read only** in the extension popup. API availability varies by browser.
 
-[Quick start](apps/docs/src/content/docs/quick-start.md) · [Tools and CLI](apps/docs/src/content/docs/tools.md) · [Agent skill](skills/tabherd/SKILL.md)
+[Quick start](apps/docs/src/content/docs/quick-start.md) · [Nix and NixOS](apps/docs/src/content/docs/nix.md) · [Tools and CLI](apps/docs/src/content/docs/tools.md) · [Agent skill](skills/tabherd/SKILL.md)
 
 ## From source
 

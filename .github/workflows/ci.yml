@@ -17,6 +17,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
@@ -34,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
@@ -54,6 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
@@ -67,3 +73,52 @@ jobs:
       - run: pnpm test:firefox
         env:
           TABHERD_FIREFOX: ${{ steps.firefox.outputs.firefox-path }}
+
+  nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@v31
+      - run: nix flake check -L
+      - run: nix run . -- --version
+      # The browsers below talk to the Nix build, registered the way the modules register it.
+      - uses: pnpm/action-setup@v4
+        if: runner.os == 'Linux'
+      - uses: actions/setup-node@v5
+        if: runner.os == 'Linux'
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: browser-actions/setup-chrome@v1
+        if: runner.os == 'Linux'
+        id: chromium
+        with:
+          chrome-version: latest
+          install-dependencies: true
+      - if: runner.os == 'Linux'
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter extension build
+          pnpm --filter extension build:firefox
+          tabherd=$(nix build --no-link --print-out-paths .#tabherd)
+          echo "TABHERD_CLI=$tabherd/bin/tabherd" >> "$GITHUB_ENV"
+          echo "TABHERD_PACKAGE=$tabherd" >> "$GITHUB_ENV"
+          # nixpkgs' Firefox wrapper with the host, as programs.firefox.nativeMessagingHosts builds it.
+          firefox=$(nix build --no-link --print-out-paths --impure --expr \
+            'let f = builtins.getFlake (toString ./.); in f.inputs.nixpkgs.legacyPackages.x86_64-linux.firefox.override { nativeMessagingHosts = [ f.packages.x86_64-linux.default ]; }')
+          echo "TABHERD_FIREFOX=$firefox/bin/firefox" >> "$GITHUB_ENV"
+      - if: runner.os == 'Linux'
+        run: node packages/bridge/test/browser-smoke.mjs
+        env:
+          TABHERD_CHROMIUM: ${{ steps.chromium.outputs.chrome-path }}
+          TABHERD_NATIVE_MANIFEST: ${{ env.TABHERD_PACKAGE }}/etc/chromium/native-messaging-hosts/com.tabherd.bridge.json
+      - if: runner.os == 'Linux'
+        run: node packages/bridge/test/firefox-smoke.mjs
+        env:
+          TABHERD_NATIVE_MANIFEST: browser

@@ -1,10 +1,12 @@
-import { access, constants, readFile } from "node:fs/promises";
+import { access, constants, readFile, stat } from "node:fs/promises";
+import { homedir } from "node:os";
+import { isAbsolute } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { CHROMIUM_ID, FIREFOX_ID, HOST_NAME, errorMessage } from "@tabherd/protocol";
 import { inspectConnections } from "./client";
-import { readInstallation, storedExtensionIds, type Registration } from "./install";
+import { findManifests, readInstallation, storedExtensionIds, type Registration } from "./install";
 import { stateDirectory } from "./paths";
 
 const exec = promisify(execFile);
@@ -15,10 +17,13 @@ export interface Check {
   fix?: string;
 }
 const SETUP = "Run tabherd setup, then reload the extension.";
+const MANAGED =
+  "Reinstall whatever installed this manifest (for Nix, rebuild your configuration), or delete it and run tabherd setup.";
 
+/** `launcher` is the path setup wrote; manifests from elsewhere only need a runnable path. */
 async function checkManifest(
   reg: Registration,
-  launcher: string,
+  launcher: string | undefined,
   extensionIds: string[],
 ): Promise<Check> {
   const name = `${reg.browser} native host manifest`;
@@ -26,11 +31,30 @@ async function checkManifest(
   try {
     manifest = JSON.parse(await readFile(reg.manifestPath, "utf8"));
   } catch (error) {
-    return { name, ok: false, detail: `${reg.manifestPath}: ${errorMessage(error)}`, fix: SETUP };
+    return {
+      name,
+      ok: false,
+      detail: `${reg.manifestPath}: ${errorMessage(error)}`,
+      fix: launcher === undefined ? MANAGED : SETUP,
+    };
   }
   const problems: string[] = [];
   if (manifest.name !== HOST_NAME) problems.push(`name is ${manifest.name}, expected ${HOST_NAME}`);
-  if (manifest.path !== launcher) problems.push(`path is ${manifest.path}, expected ${launcher}`);
+  if (launcher === undefined) {
+    const runnable =
+      typeof manifest.path === "string" &&
+      isAbsolute(manifest.path) &&
+      (await stat(manifest.path).then(
+        (info) => info.isFile(),
+        () => false,
+      )) &&
+      (await access(manifest.path, constants.X_OK).then(
+        () => true,
+        () => false,
+      ));
+    if (!runnable) problems.push(`path ${manifest.path} is not an executable file`);
+  } else if (manifest.path !== launcher)
+    problems.push(`path is ${manifest.path}, expected ${launcher}`);
   if (reg.browser === "firefox") {
     if (!manifest.allowed_extensions?.includes(FIREFOX_ID))
       problems.push(`allowed_extensions lacks ${FIREFOX_ID}`);
@@ -48,7 +72,12 @@ async function checkManifest(
     }
   }
   return problems.length
-    ? { name, ok: false, detail: problems.join("; "), fix: SETUP }
+    ? {
+        name,
+        ok: false,
+        detail: `${reg.manifestPath}: ${problems.join("; ")}`,
+        fix: launcher === undefined ? MANAGED : SETUP,
+      }
     : { name, ok: true, detail: reg.manifestPath };
 }
 
@@ -70,13 +99,35 @@ export async function doctor() {
     });
     return null;
   });
-  if (installation === undefined)
+  const { live, stale } = await inspectConnections();
+  // Without a setup record, accept manifests a package manager installed (e.g. the Nix modules).
+  const managed = installation === undefined ? findManifests(process.platform, homedir()) : [];
+  if (installation === undefined && !managed.length)
+    checks.push(
+      // A connected browser found a manifest this CLI cannot see, e.g. the one a Nix Firefox
+      // wrapper passes through MOZ_SYSTEM_DIR.
+      live.length
+        ? {
+            name: "installation record",
+            ok: true,
+            detail:
+              "None; the connected browser found a native host manifest outside the usual locations",
+          }
+        : {
+            name: "installation record",
+            ok: false,
+            detail: `No installation in ${stateDirectory()}, and no native host manifest was found`,
+            fix: "Run tabherd setup.",
+          },
+    );
+  if (managed.length) {
     checks.push({
       name: "installation record",
-      ok: false,
-      detail: `No installation in ${stateDirectory()}`,
-      fix: "Run tabherd setup.",
+      ok: true,
+      detail: "None; using native host manifests installed outside tabherd setup",
     });
+    for (const reg of managed) checks.push(await checkManifest(reg, undefined, [CHROMIUM_ID]));
+  }
   if (installation) {
     checks.push({ name: "installation record", ok: true, detail: stateDirectory() });
     for (const [name, path, mode] of [
@@ -124,7 +175,6 @@ export async function doctor() {
         ]),
       );
   }
-  const { live, stale } = await inspectConnections();
   checks.push({
     name: "browser connection",
     ok: live.length > 0,

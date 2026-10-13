@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join, dirname, resolve, sep } from "node:path";
+import { join, dirname, isAbsolute, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { access, mkdir, readFile, writeFile, unlink } from "node:fs/promises";
@@ -16,31 +16,39 @@ export interface Registration {
   manifestPath: string;
   registryKey?: string;
 }
+type Env = Record<string, string | undefined>;
+// Chromium browsers keep their Linux profiles under XDG_CONFIG_HOME; relative values are ignored.
+export const configHome = (home: string, env: Env = process.env) =>
+  env.XDG_CONFIG_HOME && isAbsolute(env.XDG_CONFIG_HOME)
+    ? env.XDG_CONFIG_HOME
+    : join(home, ".config");
 export function registration(
   browser: BrowserName,
   platform: string,
   home: string,
   state: string,
+  env: Env = process.env,
 ): Registration {
   const dirs = {
     chrome: {
-      linux: ".config/google-chrome/NativeMessagingHosts",
+      linux: "google-chrome/NativeMessagingHosts",
       darwin: "Google/Chrome",
       registry: "Google\\Chrome",
     },
     chromium: {
-      linux: ".config/chromium/NativeMessagingHosts",
+      linux: "chromium/NativeMessagingHosts",
       darwin: "Chromium",
       registry: "Chromium",
     },
     edge: {
-      linux: ".config/microsoft-edge/NativeMessagingHosts",
+      linux: "microsoft-edge/NativeMessagingHosts",
       darwin: "Microsoft Edge",
       registry: "Microsoft\\Edge",
     },
+    // Brave reads Chrome's directories on Linux and macOS (brave-core app/brave_main_delegate.cc).
     brave: {
-      linux: ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts",
-      darwin: "BraveSoftware/Brave-Browser",
+      linux: "google-chrome/NativeMessagingHosts",
+      darwin: "Google/Chrome",
       registry: "BraveSoftware\\Brave-Browser",
     },
     firefox: { linux: ".mozilla/native-messaging-hosts", darwin: "Mozilla", registry: "Mozilla" },
@@ -65,16 +73,53 @@ export function registration(
       ),
     };
   if (platform === "linux")
-    return { browser, manifestPath: join(home, dirs.linux, `${HOST_NAME}.json`) };
+    return {
+      browser,
+      manifestPath: join(
+        browser === "firefox" ? home : configHome(home, env),
+        dirs.linux,
+        `${HOST_NAME}.json`,
+      ),
+    };
   throw new Error(`Unsupported platform: ${platform}`);
+}
+// Machine-wide locations, used by package managers such as the NixOS module.
+export const SYSTEM_MANIFEST_DIRECTORIES: Partial<Record<string, [BrowserName, string][]>> = {
+  linux: [
+    ["chrome", "/etc/opt/chrome/native-messaging-hosts"],
+    ["chromium", "/etc/chromium/native-messaging-hosts"],
+    ["edge", "/etc/opt/edge/native-messaging-hosts"],
+    ["firefox", "/usr/lib/mozilla/native-messaging-hosts"],
+    ["firefox", "/usr/lib64/mozilla/native-messaging-hosts"],
+  ],
+};
+/** Manifests that exist on this machine, whoever wrote them. */
+export function findManifests(
+  platform: string,
+  home: string,
+  exists: (path: string) => boolean = existsSync,
+  env: Env = process.env,
+): Registration[] {
+  if (platform === "win32") return [];
+  const candidates = [
+    ...BROWSERS.map((browser) => registration(browser, platform, home, "", env)),
+    ...(SYSTEM_MANIFEST_DIRECTORIES[platform] ?? []).map(([browser, directory]) => ({
+      browser,
+      manifestPath: join(directory, `${HOST_NAME}.json`),
+    })),
+  ];
+  // Brave shares Chrome's file; report each file once.
+  const unique = [...new Map(candidates.map((reg) => [reg.manifestPath, reg])).values()];
+  return unique.filter((reg) => exists(reg.manifestPath));
 }
 // Profile directories show which browsers this user has run.
 export function detectBrowsers(
   platform: string,
   home: string,
-  env: Record<string, string | undefined> = process.env,
+  env: Env = process.env,
   exists: (path: string) => boolean = existsSync,
 ): BrowserName[] {
+  const config = configHome(home, env);
   const local = env.LOCALAPPDATA ?? join(home, "AppData", "Local"),
     roaming = env.APPDATA ?? join(home, "AppData", "Roaming"),
     support = join(home, "Library", "Application Support");
@@ -96,10 +141,10 @@ export function detectBrowsers(
             firefox: join(support, "Firefox"),
           }
         : {
-            chrome: join(home, ".config", "google-chrome"),
-            chromium: join(home, ".config", "chromium"),
-            edge: join(home, ".config", "microsoft-edge"),
-            brave: join(home, ".config", "BraveSoftware", "Brave-Browser"),
+            chrome: join(config, "google-chrome"),
+            chromium: join(config, "chromium"),
+            edge: join(config, "microsoft-edge"),
+            brave: join(config, "BraveSoftware", "Brave-Browser"),
             firefox: join(home, ".mozilla"),
           };
   return BROWSERS.filter((browser) => exists(paths[browser]));
@@ -190,14 +235,9 @@ export async function install(options: InstallOptions) {
       { mode: 0o600 },
     );
   }
+  const warning = setupWarning(entry);
   return {
-    // The npx cache is temporary; a registration pointing into it breaks once it is cleaned.
-    ...(entry.includes(`${sep}_npx${sep}`)
-      ? {
-          warning:
-            "Setup ran from the temporary npx cache. Install globally with npm install -g tabherd, then run tabherd setup again.",
-        }
-      : {}),
+    ...(warning ? { warning } : {}),
     installed: registrations,
     launcher,
     node,
@@ -205,6 +245,14 @@ export async function install(options: InstallOptions) {
     extensionIds: options.browsers.some((b) => b !== "firefox") ? extensionIds : undefined,
     next: "Reload the extension (or restart the browser), then run tabherd doctor",
   };
+}
+export function setupWarning(entry: string) {
+  // The npx cache is temporary; a registration pointing into it breaks once it is cleaned.
+  if (entry.includes(`${sep}_npx${sep}`))
+    return "Setup ran from the temporary npx cache. Install globally with npm install -g tabherd, then run tabherd setup again.";
+  // A store path disappears after an upgrade and garbage collection.
+  if (entry.startsWith("/nix/store/"))
+    return "Setup registered a Nix store path, which breaks once this version is garbage-collected. Use the NixOS or Home Manager module instead, or run tabherd setup again after every upgrade.";
 }
 export const isExtensionId = (id: unknown): id is string =>
   typeof id === "string" && /^[a-p]{32}$/.test(id);

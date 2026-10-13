@@ -47,3 +47,7 @@ coverage
 .cache
 tmp
 temp
+
+# Nix
+result
+result-*

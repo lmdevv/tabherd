@@ -17,7 +17,14 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HOST_NAME, FIREFOX_ID, CHROMIUM_ID } from "@tabherd/protocol";
-import { detectBrowsers, launcherText, registration, type BrowserName } from "../src/install";
+import {
+  detectBrowsers,
+  findManifests,
+  launcherText,
+  registration,
+  setupWarning,
+  type BrowserName,
+} from "../src/install";
 import { socketAddress } from "../src/paths";
 
 const exec = promisify(execFile);
@@ -28,16 +35,10 @@ test("native host registration targets each supported browser and platform", () 
     ".config/google-chrome/NativeMessagingHosts",
     ".config/chromium/NativeMessagingHosts",
     ".config/microsoft-edge/NativeMessagingHosts",
-    ".config/BraveSoftware/Brave-Browser/NativeMessagingHosts",
+    ".config/google-chrome/NativeMessagingHosts",
     ".mozilla/native-messaging-hosts",
   ];
-  const mac = [
-    "Google/Chrome",
-    "Chromium",
-    "Microsoft Edge",
-    "BraveSoftware/Brave-Browser",
-    "Mozilla",
-  ];
+  const mac = ["Google/Chrome", "Chromium", "Microsoft Edge", "Google/Chrome", "Mozilla"];
   const windows = [
     "Google\\Chrome",
     "Chromium",
@@ -47,7 +48,7 @@ test("native host registration targets each supported browser and platform", () 
   ];
   browsers.forEach((browser, i) => {
     assert.equal(
-      registration(browser, "linux", "/home/example", "/state").manifestPath,
+      registration(browser, "linux", "/home/example", "/state", {}).manifestPath,
       join("/home/example", linux[i]!, `${HOST_NAME}.json`),
     );
     assert.equal(
@@ -65,6 +66,22 @@ test("native host registration targets each supported browser and platform", () 
       `HKCU\\Software\\${windows[i]}\\NativeMessagingHosts\\${HOST_NAME}`,
     );
   });
+  // Chromium browsers follow an absolute XDG_CONFIG_HOME; Firefox always uses ~/.mozilla.
+  const xdg = (browser: BrowserName, value: string) =>
+    registration(browser, "linux", "/home/example", "/state", { XDG_CONFIG_HOME: value })
+      .manifestPath;
+  assert.equal(
+    xdg("chromium", "/xdg"),
+    join("/xdg", "chromium/NativeMessagingHosts", `${HOST_NAME}.json`),
+  );
+  assert.equal(
+    xdg("chromium", "relative"),
+    join("/home/example", ".config/chromium/NativeMessagingHosts", `${HOST_NAME}.json`),
+  );
+  assert.equal(
+    xdg("firefox", "/xdg"),
+    join("/home/example", ".mozilla/native-messaging-hosts", `${HOST_NAME}.json`),
+  );
   assert.throws(() => registration("chrome", "android", "/home", "/state"), /Unsupported/);
 });
 
@@ -100,6 +117,10 @@ test("setup detects installed browsers from their profile directories", () => {
   assert.deepEqual(
     detectBrowsers("linux", "/h", {}, () => false),
     [],
+  );
+  assert.deepEqual(
+    detectBrowsers("linux", "/h", { XDG_CONFIG_HOME: "/x" }, present([join("/x", "chromium")])),
+    ["chromium"],
   );
 });
 
@@ -357,6 +378,89 @@ test(
         );
       assert.match((await run(join(pkg, "dist", "index.js"))).warning, /npx cache/);
       assert.equal((await run(entry)).warning, undefined);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test("manifest discovery covers per-user and machine-wide locations", () => {
+  // Paths are built with the host's separator, so build the fixtures the same way.
+  const present = new Set([
+    join("/home/example", ".config/chromium/NativeMessagingHosts", `${HOST_NAME}.json`),
+    join("/etc/opt/chrome/native-messaging-hosts", `${HOST_NAME}.json`),
+    join("/usr/lib/mozilla/native-messaging-hosts", `${HOST_NAME}.json`),
+  ]);
+  assert.deepEqual(
+    findManifests("linux", "/home/example", (path) => present.has(path), {}).map((r) => [
+      r.browser,
+      r.manifestPath,
+    ]),
+    [...present].map((path, i) => [["chromium", "chrome", "firefox"][i], path]),
+  );
+  assert.deepEqual(
+    findManifests("win32", "C:\\Users\\example", () => true),
+    [],
+  );
+});
+
+test("setup warns about registrations that a cache or garbage collection removes", () => {
+  const npx = join("/home/u/.npm/_npx/abc/node_modules/tabherd/dist/index.js");
+  assert.match(setupWarning(npx)!, /npx/);
+  assert.match(setupWarning("/nix/store/abc-tabherd-0.1.0/lib/tabherd/dist/index.js")!, /Nix/);
+  assert.equal(setupWarning(join("/usr/lib/node_modules/tabherd/dist/index.js")), undefined);
+});
+
+test(
+  "doctor accepts native host manifests installed outside tabherd setup",
+  { skip: process.platform === "win32", timeout: 20000 },
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-managed-"));
+    try {
+      const home = join(dir, "home");
+      const env = {
+        ...process.env,
+        HOME: home,
+        XDG_CONFIG_HOME: join(dir, "xdg"),
+        TABHERD_STATE_DIR: join(dir, "state"),
+      };
+      const { manifestPath } = registration("chromium", process.platform, home, "", env);
+      const launcher = join(dir, "native-host");
+      await mkdir(dirname(manifestPath), { recursive: true });
+      await writeFile(launcher, "#!/bin/sh\n");
+      await chmod(launcher, 0o755);
+      const manifest = {
+        name: HOST_NAME,
+        path: launcher,
+        type: "stdio",
+        allowed_origins: [`chrome-extension://${CHROMIUM_ID}/`],
+      };
+      const doctor = async () => {
+        const result = await exec(process.execPath, [entry, "doctor"], { env }).catch((e) => e);
+        const report = JSON.parse(result.stdout);
+        return {
+          record: report.checks.find((c: any) => c.name === "installation record"),
+          manifest: report.checks.find((c: any) => c.detail.includes(manifestPath)),
+        };
+      };
+      const none = await doctor();
+      assert.equal(none.manifest, undefined);
+      await writeFile(manifestPath, JSON.stringify(manifest));
+      const managed = await doctor();
+      assert.equal(managed.record.ok, true);
+      assert.equal(managed.manifest.ok, true);
+      // A directory passes an execute-permission check but cannot be launched.
+      await writeFile(manifestPath, JSON.stringify({ ...manifest, path: dir }));
+      assert.match((await doctor()).manifest.detail, /not an executable file/);
+      await writeFile(
+        manifestPath,
+        JSON.stringify({ ...manifest, path: join(dir, "gone"), allowed_origins: [] }),
+      );
+      const broken = await doctor();
+      assert.equal(broken.manifest.ok, false);
+      assert.match(broken.manifest.detail, /not an executable file/);
+      assert.match(broken.manifest.detail, /lacks extension ID/);
+      assert.match(broken.manifest.fix, /Nix/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
