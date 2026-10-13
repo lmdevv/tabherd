@@ -47,4 +47,3 @@ coverage
 .cache
 tmp
 temp
-*.tgz
