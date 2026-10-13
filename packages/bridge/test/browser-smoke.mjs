@@ -16,7 +16,8 @@ if (process.platform !== "linux")
   throw new Error("This opt-in Chromium smoke runner currently supports Linux.");
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../../../", import.meta.url));
-const entry = join(root, "packages/bridge/dist/index.js");
+// TABHERD_ENTRY tests an installed package, e.g. $(npm root -g)/tabherd/dist/index.js.
+const entry = process.env.TABHERD_ENTRY ?? join(root, "packages/bridge/dist/index.js");
 const extension = join(root, "apps/extension/dist/chrome-mv3");
 // The manifest key pins this ID wherever the extension is loaded from.
 const extensionId = "hepgdbeccdmbongocnnamapillglcbgk";

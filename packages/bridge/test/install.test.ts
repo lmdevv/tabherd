@@ -2,7 +2,17 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, writeFile, readFile, stat, rm, chmod, mkdir, symlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  readFile,
+  stat,
+  rm,
+  chmod,
+  mkdir,
+  symlink,
+  copyFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -317,6 +327,37 @@ test(
     } finally {
       if (previous === undefined) delete process.env.TMPDIR;
       else process.env.TMPDIR = previous;
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "setup warns when it runs from the temporary npx cache",
+  { skip: process.platform === "win32", timeout: 20000 },
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tabherd-npx-"));
+    try {
+      const pkg = join(dir, "_npx", "abc", "node_modules", "tabherd");
+      await mkdir(join(pkg, "dist"), { recursive: true });
+      await copyFile(entry, join(pkg, "dist", "index.js"));
+      await symlink(
+        fileURLToPath(new URL("../node_modules", import.meta.url)),
+        join(pkg, "node_modules"),
+      );
+      const run = async (script: string) =>
+        JSON.parse(
+          (
+            await exec(
+              process.execPath,
+              [script, "setup", "--browser", "firefox", "--manifest-dir", join(dir, "manifests")],
+              { env: { ...process.env, TABHERD_STATE_DIR: join(dir, "state") } },
+            )
+          ).stdout,
+        );
+      assert.match((await run(join(pkg, "dist", "index.js"))).warning, /npx cache/);
+      assert.equal((await run(entry)).warning, undefined);
+    } finally {
       await rm(dir, { recursive: true, force: true });
     }
   },

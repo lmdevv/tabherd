@@ -1,6 +1,6 @@
 {
   "name": "tabherd",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Your browser, connected to your agent. Local MCP server and CLI for the Tabherd browser extension.",
   "keywords": [
     "agent",

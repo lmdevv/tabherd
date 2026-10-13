@@ -43,5 +43,7 @@ jobs:
           if npm view "tabherd@${version}" version >/dev/null 2>&1; then
             echo "tabherd@${version} is already on npm; skipping."
           else
-            npm publish --access public
+            # pnpm pack rewrites workspace: dependency ranges; npm publish keeps them literally.
+            pnpm pack --pack-destination "$RUNNER_TEMP"
+            npm publish "$RUNNER_TEMP/tabherd-${version}.tgz" --access public
           fi
