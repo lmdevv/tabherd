@@ -3,7 +3,7 @@ name: tabherd
 description: Control the user's connected browser with Tabherd MCP or CLI, including tab organization, bookmarks, and website interaction.
 ---
 
-Use `browser_connections` to identify the profile. If multiple profiles are connected, select the intended `connectionId` explicitly. `browser_capabilities` reports the actual supported methods and page actions for that browser.
+Use `browser_connections` to identify the profile. If multiple profiles are connected, select the intended `connectionId` explicitly. `browser_capabilities` reports the actual supported methods and page actions for that browser, and the `access` mode the user chose. If a call is blocked by the access mode, tell the user what you need instead of looking for a workaround.
 
 `browser_call` takes `{method, args, connectionId?}`. Arguments are positional JSON, matching the browser extension API: `tabs.query` with `[{}]`, `tabs.move` with `[[12,13], {windowId:4,index:-1}]`, `tabs.remove` with `[[12,13]]`. Use live IDs; query again when navigation or another user changes state.
 

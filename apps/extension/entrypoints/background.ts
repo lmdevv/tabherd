@@ -9,6 +9,8 @@ export default defineBackground({
       if (sender.id !== browser.runtime.id) return;
       if (message?.type === "tabherd-status") {
         sendResponse(bridge.getStatus());
+      } else if (message?.type === "tabherd-activity") {
+        sendResponse(bridge.getActivity());
       } else if (message?.type === "tabherd-reconnect") {
         bridge.reconnect().then(sendResponse);
         return true;

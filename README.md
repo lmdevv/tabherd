@@ -30,7 +30,7 @@ Add the bridge to your agent’s stdio MCP configuration:
 }
 ```
 
-The browser starts the native host automatically. No account or separate server. Tabherd grants local control of your real browser profile; use it with agents you trust. API availability varies by browser.
+The browser starts the native host automatically. No account or separate server. Tabherd grants local control of your real browser profile; use it with agents you trust, and pick **Full access**, **Standard** (no cookies, page JavaScript, or data deletion) or **Read only** in the extension popup. API availability varies by browser.
 
 [Quick start](apps/docs/src/content/docs/quick-start.md) · [Tools and CLI](apps/docs/src/content/docs/tools.md) · [Agent skill](skills/tabherd/SKILL.md)
 

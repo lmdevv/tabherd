@@ -132,7 +132,8 @@ export function createBridge(api: BrowserApi, chromium: boolean) {
   }
   return {
     connect,
-    getStatus: () => ({ ...status }),
+    getStatus: () => ({ ...status, access: engine.access() }),
+    getActivity: () => engine.activity(),
     async reconnect() {
       // Finish initialization before disconnecting to avoid overlapping ports.
       await connecting;

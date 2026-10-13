@@ -228,7 +228,13 @@ export function domAction(
   }
 }
 
-export function createPageController(api: BrowserApi, chromium: boolean) {
+// beforeRun runs as each action starts, after any wait in the per-tab queue, so it sees
+// settings that changed while the action was queued.
+export function createPageController(
+  api: BrowserApi,
+  chromium: boolean,
+  beforeRun: (input: PageInput) => void = () => {},
+) {
   const pending = new Map<number, Promise<unknown>>();
   async function inject(input: PageInput, mode?: "measure" | "locate" | "focus"): Promise<any> {
     const results = await api.scripting.executeScript({
@@ -596,7 +602,10 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
     }
   }
   return async (input: PageInput) => {
-    if (input.action === "wait") return wait(input);
+    if (input.action === "wait") {
+      beforeRun(input);
+      return wait(input);
+    }
     if (
       chromium &&
       ["click", "type", "press", "evaluate", "screenshot", "hover", "drag", "upload"].includes(
@@ -609,7 +618,12 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
         );
       // A debugger session is owned by exactly one request, including detach.
       const previous = pending.get(input.tabId) ?? Promise.resolve();
-      const current = previous.catch(() => {}).then(() => debug(input));
+      const current = previous
+        .catch(() => {})
+        .then(() => {
+          beforeRun(input);
+          return debug(input);
+        });
       pending.set(input.tabId, current);
       try {
         return await current;
@@ -617,6 +631,7 @@ export function createPageController(api: BrowserApi, chromium: boolean) {
         if (pending.get(input.tabId) === current) pending.delete(input.tabId);
       }
     }
+    beforeRun(input);
     if (input.action === "evaluate") return evaluateInFirefox(input);
     if (input.action === "drag" || input.action === "upload")
       throw new Error(
