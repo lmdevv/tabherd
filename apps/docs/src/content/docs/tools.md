@@ -55,22 +55,22 @@ For example, `tabs.move` uses `args: [tabId, {"windowId": windowId, "index": -1}
 
 All page calls require `tabId` and `action`. Use selectors returned by `read` where possible.
 
-| `action`     | Additional fields                                    | Result                                                                                                               |
-| ------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `read`       | `maxTextLength?`, `maxElements?`, `frameId?`         | Page text, links, and interactive elements (200 of each by default).                                                 |
-| `wait`       | `selector?` or `text?`, `gone?`, `timeoutMs?`        | Wait for a visible element or text to appear (or disappear), or for the tab to finish loading when neither is given. |
-| `click`      | `selector` or `x`, `y`                               | Click an element or coordinates.                                                                                     |
-| `hover`      | `selector` or `x`, `y`                               | Move the pointer over an element.                                                                                    |
-| `drag`       | `selector` or `x`, `y`; `toSelector` or `toX`, `toY` | Drag with the mouse from one point to another (Chromium).                                                            |
-| `type`       | `selector`, `text`                                   | Replace a field’s contents.                                                                                          |
-| `select`     | `selector`, `value`                                  | Select an option.                                                                                                    |
-| `scroll`     | `x?`, `y?`, `selector?`                              | Scroll the page or an element.                                                                                       |
-| `press`      | `key`, `selector?`                                   | Press a key, including modifiers such as `Control+A`.                                                                |
-| `upload`     | `selector`, `files`                                  | Attach local files to an `<input type=file>` (Chromium).                                                             |
-| `evaluate`   | `expression`                                         | Evaluate JavaScript in the page and return a JSON value.                                                             |
-| `screenshot` | None                                                 | Capture the page.                                                                                                    |
+| `action`     | Additional fields                                     | Result                                                                                                               |
+| ------------ | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `read`       | `maxTextLength?`, `maxElements?`, `frameId?`          | Page text, links, and interactive elements (200 of each by default).                                                 |
+| `wait`       | `selector?` or `text?`, `gone?`, `url?`, `timeoutMs?` | Wait for a visible element or text to appear (or disappear), or for the tab to finish loading when neither is given. |
+| `click`      | `selector` or `x`, `y`                                | Click an element or coordinates.                                                                                     |
+| `hover`      | `selector` or `x`, `y`                                | Move the pointer over an element.                                                                                    |
+| `drag`       | `selector` or `x`, `y`; `toSelector` or `toX`, `toY`  | Drag with the mouse from one point to another (Chromium).                                                            |
+| `type`       | `selector`, `text`                                    | Replace a field’s contents.                                                                                          |
+| `select`     | `selector`, `value`                                   | Select an option.                                                                                                    |
+| `scroll`     | `x?`, `y?`, `selector?`                               | Scroll the page or an element.                                                                                       |
+| `press`      | `key`, `selector?`                                    | Press a key, including modifiers such as `Control+A`.                                                                |
+| `upload`     | `selector`, `files`                                   | Attach local files to an `<input type=file>` (Chromium).                                                             |
+| `evaluate`   | `expression`                                          | Evaluate JavaScript in the page and return a JSON value.                                                             |
+| `screenshot` | None                                                  | Capture the page.                                                                                                    |
 
-`timeoutMs` defaults to 10 seconds and may be up to 45. After `tabs.update` or a click that navigates, call `wait` with no selector before reading. Relative `files` paths are resolved from the CLI or MCP server’s working directory.
+`timeoutMs` defaults to 10 seconds and may be up to 45. After `tabs.update` or a click that navigates, wait for something only the next page has: pass `url` (part of the new address), or a `selector` or `text` from the new page. Right after a click, the old page can still report that it has loaded. Relative `files` paths are resolved from the CLI or MCP server’s working directory.
 
 Chromium uses its debugger API for trusted input, uploads, and JavaScript evaluation. Firefox uses DOM events, which some sites ignore; `drag` and `upload` are unavailable, screenshots capture the visible tab, and `evaluate` falls back to an isolated context (DOM only, no page globals) on pages whose CSP forbids `eval`. Browser-internal pages, extension stores, and other protected pages may block page access. Check capabilities for exact support.
 

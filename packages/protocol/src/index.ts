@@ -58,8 +58,10 @@ export const PageRequest = z
     toY: z.number().finite().optional(),
     // upload: absolute local paths; the CLI resolves relative paths
     files: z.array(z.string().min(1).max(4096)).min(1).max(100).optional(),
-    // wait: for selector/text to appear (or disappear with gone), else for the tab to load
+    // wait: for selector/text to appear (or disappear with gone), else for the tab to load;
+    // url requires the tab URL to contain it, which avoids matching the page before a navigation
     gone: z.boolean().optional(),
+    url: z.string().min(1).max(4096).optional(),
     timeoutMs: z.number().int().min(0).max(MAX_WAIT_MS).default(10_000),
     maxTextLength: z.number().int().min(1).max(100_000).default(20_000),
     maxElements: z.number().int().min(1).max(1000).default(200),

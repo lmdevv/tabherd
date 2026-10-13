@@ -36,6 +36,8 @@ const fixture = createServer((_request, response) => {
     <p id="hover" style="padding:8px">Hover me</p><input id="file" type="file">
     <div id="handle" style="width:40px;height:40px;background:#c33;position:relative"></div>
     <div id="drop" style="width:80px;height:80px;margin-left:300px;background:#3c3"></div>
+    <div id="card" draggable="true" style="width:60px;height:30px;background:#33c">Card</div>
+    <div id="bin" style="width:120px;height:60px;margin-left:300px;background:#ccc">Bin</div>
     <div id="space"></div>
     <script>window.events=[]; nameInput=document.getElementById('name');
     nameInput.addEventListener('input',e=>events.push({type:'input',trusted:e.isTrusted}));
@@ -47,6 +49,10 @@ const fixture = createServer((_request, response) => {
     handle.addEventListener('mousedown',()=>{dragging=true;});
     addEventListener('mouseup',e=>{if(!dragging)return;dragging=false;const r=document.getElementById('drop').getBoundingClientRect();
       window.dropped=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;});
+    const card=document.getElementById('card'),bin=document.getElementById('bin');
+    card.addEventListener('dragstart',e=>e.dataTransfer.setData('text/plain','card-1'));
+    bin.addEventListener('dragover',e=>e.preventDefault());
+    bin.addEventListener('drop',e=>{e.preventDefault();window.html5Dropped=e.dataTransfer.getData('text/plain');});
     setTimeout(()=>{const late=document.createElement('p');late.id='late';late.textContent='Loaded later';document.body.prepend(late);},700);</script>`);
 });
 fixture.listen(0, "127.0.0.1");
@@ -152,6 +158,19 @@ try {
   );
   await page(a.id, "drag", { selector: "#handle", toSelector: "#drop" });
   assert.equal(await page(a.id, "evaluate", { expression: "window.dropped" }), true);
+  const html5 = await page(a.id, "drag", { selector: "#card", toSelector: "#bin" });
+  assert.equal(html5.html5, true);
+  assert.equal(await page(a.id, "evaluate", { expression: "window.html5Dropped" }), "card-1");
+  const started = Date.now();
+  assert.match(
+    await pageError(a.id, "wait", { selector: "div[", timeoutMs: 10000 }),
+    /not a valid selector/,
+  );
+  assert.ok(Date.now() - started < 3000, "invalid selectors fail fast");
+  assert.match(
+    await pageError(a.id, "click", { selector: "#nope" }),
+    /No element matches selector: #nope/,
+  );
   const upload = join(base, "notes.txt");
   await writeFile(upload, "uploaded by tabherd");
   assert.equal((await page(a.id, "upload", { selector: "#file", files: [upload] })).files, 1);
@@ -191,7 +210,7 @@ try {
   assert.equal(screenshot.content[0].type, "image");
   assert.equal(Buffer.from(screenshot.content[0].data, "base64").subarray(1, 4).toString(), "PNG");
   await call("tabs.update", [a.id, { url: `${url}?reloaded` }]);
-  await page(a.id, "wait", { timeoutMs: 10000 });
+  await page(a.id, "wait", { url: "?reloaded", timeoutMs: 10000 });
   assert.equal((await page(a.id, "read")).url, `${url}?reloaded`);
   const group = await call("tabs.group", [{ tabIds: [a.id, b.id] }]);
   await call("tabGroups.update", [group, { title: "Research", color: "blue" }]);

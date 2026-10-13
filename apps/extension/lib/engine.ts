@@ -58,7 +58,7 @@ export function createEngine(api: BrowserApi, chromium: boolean) {
           limitations: [
             "Browser internal pages, extension pages, and other protected pages cannot be scripted.",
             "Page reads return up to maxElements (default 200, max 1000) links and interactive elements; text is bounded by maxTextLength.",
-            "wait polls every 200 ms for a visible selector, page text, or (with neither) tab load, up to timeoutMs (max 45000).",
+            "wait polls every 200 ms for a visible selector, page text, or (with neither) tab load, up to timeoutMs (max 45000). After a click that navigates, pass url or wait for content from the next page: the old page may still report loaded.",
             ...(chromium
               ? [
                   "Page control attaches the debugger briefly. Close DevTools for the target tab if attachment is refused.",
