@@ -98,7 +98,12 @@ export function domAction(
       let found: boolean;
       if (input.selector) {
         const element = document.querySelector(input.selector);
-        found = !!element && (element.checkVisibility?.() ?? element.getClientRects().length > 0);
+        // visibility: hidden only counts when asked for explicitly.
+        found =
+          !!element &&
+          (element.checkVisibility?.({ visibilityProperty: true }) ??
+            (element.getClientRects().length > 0 &&
+              getComputedStyle(element).visibility !== "hidden"));
       } else if (input.text !== undefined)
         found = (document.body?.innerText ?? "").includes(input.text);
       else throw new Error("wait in the page requires selector or text.");

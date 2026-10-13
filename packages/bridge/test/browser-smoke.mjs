@@ -38,6 +38,7 @@ const fixture = createServer((_request, response) => {
     <div id="drop" style="width:80px;height:80px;margin-left:300px;background:#3c3"></div>
     <div id="card" draggable="true" style="width:60px;height:30px;background:#33c">Card</div>
     <div id="bin" style="width:120px;height:60px;margin-left:300px;background:#ccc">Bin</div>
+    <p id="ghost" style="visibility:hidden">Ghost</p>
     <div id="space"></div>
     <script>window.events=[]; nameInput=document.getElementById('name');
     nameInput.addEventListener('input',e=>events.push({type:'input',trusted:e.isTrusted}));
@@ -147,6 +148,8 @@ try {
   assert.ok((await page(a.id, "wait", { selector: "#late", timeoutMs: 5000 })).ok);
   await page(a.id, "wait", { text: "Loaded later" });
   await page(a.id, "wait", { selector: "#missing", gone: true });
+  // visibility: hidden elements are not visible, so they count as gone.
+  await page(a.id, "wait", { selector: "#ghost", gone: true, timeoutMs: 1000 });
   assert.match(
     await pageError(a.id, "wait", { selector: "#never", timeoutMs: 300 }),
     /Timed out after 300 ms waiting for selector #never/,
