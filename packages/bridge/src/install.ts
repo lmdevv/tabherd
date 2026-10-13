@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 import { access, mkdir, readFile, writeFile, unlink } from "node:fs/promises";
@@ -191,6 +191,13 @@ export async function install(options: InstallOptions) {
     );
   }
   return {
+    // The npx cache is temporary; a registration pointing into it breaks once it is cleaned.
+    ...(entry.includes(`${sep}_npx${sep}`)
+      ? {
+          warning:
+            "Setup ran from the temporary npx cache. Install globally with npm install -g tabherd, then run tabherd setup again.",
+        }
+      : {}),
     installed: registrations,
     launcher,
     node,
